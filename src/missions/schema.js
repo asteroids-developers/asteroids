@@ -19,6 +19,8 @@ export function validateMission(value) {
     mode: value.mode ?? 'waves',
     durationSeconds: value.durationSeconds ?? 60,
     spawnIntervalSeconds: value.spawnIntervalSeconds ?? 1.25,
+    enemyCount: value.enemyCount ?? 0,
+    bossLives: value.bossLives ?? 0,
   });
 }
 

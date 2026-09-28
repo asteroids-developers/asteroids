@@ -49,8 +49,8 @@ function updateHud() {
   score.textContent = state.score;
   lives.textContent = state.lives;
   const legacy = state.settings.mode === 'waves';
-  fieldLabel.textContent = legacy ? 'ВОЛНА' : 'АСТЕРОИДЫ';
-  fieldValue.textContent = legacy ? state.wave : state.asteroids.filter(rock => rock.x + RADII[rock.size] >= 0 && rock.x - RADII[rock.size] <= WORLD.width).length;
+  fieldLabel.textContent = legacy ? 'ВОЛНА' : state.settings.mode === 'combat' ? 'ВРАГИ' : 'АСТЕРОИДЫ';
+  fieldValue.textContent = legacy ? state.wave : state.settings.mode === 'combat' ? state.enemies.length + Number(Boolean(state.boss)) : state.asteroids.filter(rock => rock.x + RADII[rock.size] >= 0 && rock.x - RADII[rock.size] <= WORLD.width).length;
   missionProgress.hidden = legacy;
   if (state.settings.mode === 'clear') {
     const total = state.settings.asteroidCount * 7;
@@ -63,6 +63,12 @@ function updateHud() {
     objectiveProgress.textContent = 'Осталось ' + Math.ceil(Math.max(0, state.settings.durationSeconds - state.elapsed)) + ' с';
     missionProgress.max = state.settings.durationSeconds;
     missionProgress.value = state.elapsed;
+  } else if (state.settings.mode === 'combat') {
+    objective.textContent = state.settings.bossLives ? 'Уничтожьте эскадрилью и босса' : 'Уничтожьте вражеские корабли';
+    objectiveProgress.textContent = 'Враги: ' + state.enemiesDestroyed + ' / ' + state.settings.enemyCount
+      + (state.settings.bossLives ? ' · Босс: ' + Math.max(0, state.settings.bossLives - state.bossHits) + ' / ' + state.settings.bossLives + ' жизней' : '');
+    missionProgress.max = state.settings.enemyCount + state.settings.bossLives;
+    missionProgress.value = state.enemiesDestroyed + state.bossHits;
   } else {
     objective.textContent = 'Продержитесь как можно дольше';
     objectiveProgress.textContent = 'Волна ' + state.wave;
@@ -77,7 +83,7 @@ function finish() {
   status.textContent = won ? 'Миссия выполнена' : 'Полёт завершён';
   overlayTitle.textContent = status.textContent;
   overlayTag.textContent = won ? 'ЦЕЛЬ ДОСТИГНУТА' : 'РАЗБОР ВЫЛЕТА';
-  const result = state.settings.mode === 'survival' ? 'Вы выдержали весь поток.' : 'Сектор очищен.';
+  const result = state.settings.mode === 'survival' ? 'Вы выдержали весь поток.' : state.settings.mode === 'combat' ? 'Вражеская эскадрилья уничтожена.' : 'Сектор очищен.';
   overlayCopy.textContent = (won ? result + ' ' : '') + 'Ваш результат: ' + state.score + ' очков.';
   startButton.textContent = won ? 'Повторить миссию' : 'Начать заново';
   pauseButton.disabled = true;
@@ -118,7 +124,7 @@ function togglePause() {
 function updateMissionBriefing() {
   document.querySelector('#mission-title').textContent = settings.title;
   document.querySelector('#mission-description').textContent = settings.description;
-  document.querySelector('#mission-difficulty').textContent = settings.mode === 'clear' ? 'Одна волна' : settings.mode === 'survival' ? 'Поток · ' + settings.durationSeconds + ' с' : 'Бесконечные волны';
+  document.querySelector('#mission-difficulty').textContent = settings.mode === 'clear' ? 'Одна волна' : settings.mode === 'survival' ? 'Поток · ' + settings.durationSeconds + ' с' : settings.mode === 'combat' ? 'Бой · ' + settings.enemyCount + ' врага' + (settings.bossLives ? ' + босс' : '') : 'Бесконечные волны';
   overlayCopy.textContent = settings.description;
   document.querySelector('#flight-label').textContent = 'МИССИЯ / ' + settings.title.toUpperCase();
 }
