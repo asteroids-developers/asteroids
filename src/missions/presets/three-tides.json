@@ -1,0 +1,12 @@
+{
+  "id": "three-tides",
+  "title": "Три прилива",
+  "description": "Выживание в три волны по 15 секунд: медленный дрейф, средний поток и быстрый шквал. Каждая волна разгоняет входящие астероиды.",
+  "seed": 777,
+  "asteroidCount": 5,
+  "asteroidSpeed": 1,
+  "mode": "survival",
+  "durationSeconds": 45,
+  "spawnIntervalSeconds": 1.25,
+  "speedStages": [0.6, 1.4, 2.5]
+}

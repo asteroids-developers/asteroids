@@ -8,11 +8,31 @@ function random(state) {
   return state.rng / 4294967296;
 }
 
+function activeStages(state) {
+  const { mode, speedStages } = state.settings;
+  return mode === 'survival' && speedStages ? speedStages : null;
+}
+
+/** Zero-based survival stage; missions without stages stay on a single stage. */
+export function stageIndex(state) {
+  const stages = activeStages(state);
+  if (!stages) return 0;
+  const span = state.settings.durationSeconds / stages.length;
+  return Math.min(stages.length - 1, Math.floor(state.elapsed / span));
+}
+
+/** Speed for rocks created right now: the stage multiplier scales asteroidSpeed. */
+export function stageSpeed(state) {
+  const stages = activeStages(state);
+  const { asteroidSpeed } = state.settings;
+  return stages ? asteroidSpeed * stages[stageIndex(state)] : asteroidSpeed;
+}
+
 export function makeAsteroid(state, x, y, size) {
   const direction = state.settings.mode === 'survival'
     ? Math.PI + (random(state) - 0.5) * 0.28
     : random(state) * Math.PI * 2;
-  const speed = (30 + random(state) * 35) * state.settings.asteroidSpeed
+  const speed = (30 + random(state) * 35) * stageSpeed(state)
     * (1 + (state.wave - 1) * 0.08) * (1 + (3 - size) * 0.25);
   return {
     id: state.nextId++, x, y, size,

@@ -1,5 +1,5 @@
 import './style.css';
-import { createGame, stepGame, WORLD, RADII } from './game/core.js';
+import { createGame, stepGame, stageIndex, WORLD, RADII } from './game/core.js';
 import { createRenderer } from './render.js';
 import { missions } from './missions/catalog.js';
 
@@ -59,8 +59,10 @@ function updateHud() {
     missionProgress.max = total;
     missionProgress.value = state.destroyed;
   } else if (state.settings.mode === 'survival') {
+    const stages = state.settings.speedStages;
+    const stage = stages ? 'Волна ' + (stageIndex(state) + 1) + ' из ' + stages.length + ' · ' : '';
     objective.textContent = 'Продержитесь ' + state.settings.durationSeconds + ' секунд';
-    objectiveProgress.textContent = 'Осталось ' + Math.ceil(Math.max(0, state.settings.durationSeconds - state.elapsed)) + ' с';
+    objectiveProgress.textContent = stage + 'Осталось ' + Math.ceil(Math.max(0, state.settings.durationSeconds - state.elapsed)) + ' с';
     missionProgress.max = state.settings.durationSeconds;
     missionProgress.value = state.elapsed;
   } else {
@@ -118,7 +120,7 @@ function togglePause() {
 function updateMissionBriefing() {
   document.querySelector('#mission-title').textContent = settings.title;
   document.querySelector('#mission-description').textContent = settings.description;
-  document.querySelector('#mission-difficulty').textContent = settings.mode === 'clear' ? 'Одна волна' : settings.mode === 'survival' ? 'Поток · ' + settings.durationSeconds + ' с' : 'Бесконечные волны';
+  document.querySelector('#mission-difficulty').textContent = settings.mode === 'clear' ? 'Одна волна' : settings.mode === 'survival' ? 'Поток · ' + settings.durationSeconds + ' с' + (settings.speedStages ? ' · волн: ' + settings.speedStages.length : '') : 'Бесконечные волны';
   overlayCopy.textContent = settings.description;
   document.querySelector('#flight-label').textContent = 'МИССИЯ / ' + settings.title.toUpperCase();
 }
