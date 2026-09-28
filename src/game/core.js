@@ -4,12 +4,14 @@ import { makeAsteroid, spawnWave, spawnIncoming } from './spawn.js';
 export { WORLD, RADII, toroidalDistance } from './world.js';
 const POINTS = { 1: 100, 2: 50, 3: 20 };
 const SHIP_RADIUS = 12;
+const ENEMY_RADIUS = 14;
+const ENEMY_POSITIONS = [[120, 120], [840, 120], [120, 520]];
 
 export function validateSettings({
   seed, asteroidCount, asteroidSpeed, mode = 'waves',
-  durationSeconds = 60, spawnIntervalSeconds = 1.25,
+  durationSeconds = 60, spawnIntervalSeconds = 1.25, enemyCount = 0,
 }) {
-  if (!['waves', 'clear', 'survival'].includes(mode)) throw new TypeError('unknown mission mode');
+  if (!['waves', 'clear', 'survival', 'combat'].includes(mode)) throw new TypeError('unknown mission mode');
   if (!Number.isFinite(durationSeconds) || durationSeconds < 1 || durationSeconds > 600) {
     throw new RangeError('durationSeconds must be between 1 and 600');
   }
@@ -17,8 +19,11 @@ export function validateSettings({
     throw new RangeError('spawnIntervalSeconds must be between 0.25 and 10');
   }
   if (!Number.isSafeInteger(seed)) throw new TypeError('seed must be a safe integer');
-  if (!Number.isInteger(asteroidCount) || asteroidCount < 1 || asteroidCount > 30) {
-    throw new RangeError('asteroidCount must be between 1 and 30');
+  if (!Number.isInteger(asteroidCount) || asteroidCount < (mode === 'combat' ? 0 : 1) || asteroidCount > 30) {
+    throw new RangeError('asteroidCount must be between 0 and 30 in combat, or 1 and 30 otherwise');
+  }
+  if (!Number.isInteger(enemyCount) || enemyCount < 0 || enemyCount > 3 || (mode === 'combat' && enemyCount < 1) || (mode !== 'combat' && enemyCount !== 0)) {
+    throw new RangeError('enemyCount must be 1 to 3 in combat and 0 otherwise');
   }
   if (!Number.isFinite(asteroidSpeed) || asteroidSpeed <= 0) {
     throw new RangeError('asteroidSpeed must be finite and positive');
@@ -27,17 +32,20 @@ export function validateSettings({
 
 export function createGame({
   seed = 1, asteroidCount = 5, asteroidSpeed = 1, mode = 'waves',
-  durationSeconds = 60, spawnIntervalSeconds = 1.25,
+  durationSeconds = 60, spawnIntervalSeconds = 1.25, enemyCount = 0,
 } = {}) {
-  const settings = { seed, asteroidCount, asteroidSpeed, mode, durationSeconds, spawnIntervalSeconds };
+  const settings = { seed, asteroidCount, asteroidSpeed, mode, durationSeconds, spawnIntervalSeconds, enemyCount };
   validateSettings(settings);
   const state = {
     status: 'playing', score: 0, lives: 3, wave: 1, elapsed: 0, destroyed: 0,
     spawnCountdown: spawnIntervalSeconds,
     settings, rng: seed >>> 0, nextId: 1, ship: newShip(),
-    asteroids: [], bullets: [],
+    asteroids: [], bullets: [], enemies: [], enemyBullets: [], enemiesDestroyed: 0,
   };
-  spawnWave(state);
+  if (asteroidCount > 0) spawnWave(state);
+  if (mode === 'combat') state.enemies = ENEMY_POSITIONS.slice(0, enemyCount).map(([x, y]) => ({
+    id: state.nextId++, x, y, angle: 0, cooldown: 1.5,
+  }));
   return state;
 }
 
@@ -57,6 +65,28 @@ function distanceToRock(state, body, rock) {
 function move(body, dt) {
   body.x = wrap(body.x + body.vx * dt, WORLD.width);
   body.y = wrap(body.y + body.vy * dt, WORLD.height);
+}
+
+function toward(from, to) {
+  const dx = ((to.x - from.x + WORLD.width * 1.5) % WORLD.width) - WORLD.width / 2;
+  const dy = ((to.y - from.y + WORLD.height * 1.5) % WORLD.height) - WORLD.height / 2;
+  return Math.atan2(dy, dx);
+}
+
+function advanceEnemies(state, dt) {
+  for (const enemy of state.enemies) {
+    enemy.angle = toward(enemy, state.ship);
+    enemy.x = wrap(enemy.x + Math.cos(enemy.angle) * 55 * dt, WORLD.width);
+    enemy.y = wrap(enemy.y + Math.sin(enemy.angle) * 55 * dt, WORLD.height);
+    enemy.cooldown -= dt;
+    if (enemy.cooldown <= 0) {
+      state.enemyBullets.push({ id: state.nextId++, x: enemy.x, y: enemy.y,
+        vx: Math.cos(enemy.angle) * 190, vy: Math.sin(enemy.angle) * 190, ttl: 2.5 });
+      enemy.cooldown += 1.5;
+    }
+  }
+  for (const shot of state.enemyBullets) { move(shot, dt); shot.ttl -= dt; }
+  state.enemyBullets = state.enemyBullets.filter(shot => shot.ttl > 0);
 }
 
 function steer(state, input, dt) {
@@ -89,8 +119,18 @@ function steer(state, input, dt) {
 function resolveHits(state) {
   const destroyed = new Set();
   const spent = new Set();
+  const defeated = new Set();
   const fragments = [];
   for (const shot of state.bullets) {
+    for (const enemy of state.enemies) {
+      if (defeated.has(enemy.id) || toroidalDistance(shot, enemy) > ENEMY_RADIUS + 2) continue;
+      defeated.add(enemy.id);
+      spent.add(shot.id);
+      state.enemiesDestroyed++;
+      state.score += 200;
+      break;
+    }
+    if (spent.has(shot.id)) continue;
     for (const rock of state.asteroids) {
       if (destroyed.has(rock.id)) continue;
       if (distanceToRock(state, shot, rock) > RADII[rock.size] + 2) continue;
@@ -106,10 +146,13 @@ function resolveHits(state) {
     }
   }
   state.bullets = state.bullets.filter(shot => !spent.has(shot.id));
+  state.enemies = state.enemies.filter(enemy => !defeated.has(enemy.id));
   state.asteroids = state.asteroids.filter(rock => !destroyed.has(rock.id)).concat(fragments);
   if (state.ship.invulnerable > 0) return;
   const hit = state.asteroids.some(rock =>
-    distanceToRock(state, state.ship, rock) < SHIP_RADIUS + RADII[rock.size]);
+    distanceToRock(state, state.ship, rock) < SHIP_RADIUS + RADII[rock.size])
+    || state.enemies.some(enemy => toroidalDistance(state.ship, enemy) < SHIP_RADIUS + ENEMY_RADIUS)
+    || state.enemyBullets.some(shot => toroidalDistance(state.ship, shot) < SHIP_RADIUS + 3);
   if (!hit) return;
   state.lives--;
   if (state.lives === 0) {
@@ -149,6 +192,7 @@ export function stepGame(previous, input = {}, dt = 1 / 60) {
     shot.ttl -= dt;
   }
   state.bullets = state.bullets.filter(shot => shot.ttl > 0);
+  if (state.settings.mode === 'combat') advanceEnemies(state, dt);
   resolveHits(state);
   // Collision loss takes precedence over completing an objective in the same step.
   if (state.status !== 'playing') return state;
@@ -162,6 +206,8 @@ export function stepGame(previous, input = {}, dt = 1 / 60) {
         state.spawnCountdown += state.settings.spawnIntervalSeconds;
       }
     }
+  } else if (state.settings.mode === 'combat') {
+    if (state.enemies.length === 0 && state.asteroids.length === 0) state.status = 'won';
   } else if (state.asteroids.length === 0) {
     if (state.settings.mode === 'clear') state.status = 'won';
     else { state.wave++; spawnWave(state); }

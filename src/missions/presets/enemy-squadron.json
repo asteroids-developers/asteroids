@@ -1,0 +1,10 @@
+{
+  "id": "enemy-squadron",
+  "title": "Вражеская эскадрилья",
+  "description": "Уничтожьте три вражеских корабля. Они преследуют вас и стреляют; берегите три жизни.",
+  "seed": 73,
+  "asteroidCount": 0,
+  "asteroidSpeed": 1,
+  "mode": "combat",
+  "enemyCount": 3
+}
