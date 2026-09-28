@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createGame, stepGame, WORLD, RADII, toroidalDistance } from '../../src/game/core.js';
+import { createGame, stepGame, stageIndex, WORLD, RADII, toroidalDistance } from '../../src/game/core.js';
 
 const rock = (id, x, y, size = 1, vx = 0) => ({ id, x, y, vx, vy: 0, size, angle: 0, spin: 0 });
 const bullet = (id, x, y) => ({ id, x, y, vx: 0, vy: 0, ttl: 1 });
@@ -205,4 +205,54 @@ test('later dense waves stay safe when the ship is near a corner', () => {
   const next = stepGame(game, {}, 0.01);
   assert.equal(next.asteroids.length, 30);
   assert.ok(next.asteroids.every(rock => toroidalDistance(rock, next.ship) >= 180));
+});
+
+test('survival stages split the timer and accelerate each new rock', () => {
+  const staged = () => createGame({
+    seed: 777, mode: 'survival', asteroidCount: 1, asteroidSpeed: 1,
+    durationSeconds: 45, spawnIntervalSeconds: 1.25, speedStages: [0.6, 1.4, 2.5],
+  });
+  const speeds = [0, 15, 30, 44.9].map(elapsed => {
+    const game = staged();
+    game.elapsed = elapsed;
+    game.asteroids = [];
+    game.spawnCountdown = 0.001;
+    const next = stepGame(game, {}, 0.001);
+    assert.equal(next.asteroids.length, 1);
+    return Math.hypot(next.asteroids[0].vx, next.asteroids[0].vy);
+  });
+  assert.equal(stageIndex({ ...staged(), elapsed: 0 }), 0);
+  assert.equal(stageIndex({ ...staged(), elapsed: 15 }), 1);
+  assert.equal(stageIndex({ ...staged(), elapsed: 30 }), 2);
+  assert.equal(stageIndex({ ...staged(), elapsed: 45 }), 2);
+  assert.ok(speeds[0] < speeds[1] && speeds[1] < speeds[2]);
+  assert.equal(speeds[2], speeds[3]);
+  // The same random draw scaled by each stage multiplier.
+  assert.ok(Math.abs(speeds[1] / speeds[0] - 1.4 / 0.6) < 1e-9);
+  assert.ok(Math.abs(speeds[2] / speeds[0] - 2.5 / 0.6) < 1e-9);
+});
+
+test('stages leave other modes and staged missions still winnable', () => {
+  const waves = createGame({ speedStages: [0.6, 1.9] });
+  const plain = createGame({});
+  assert.deepEqual(waves.asteroids, plain.asteroids);
+  let game = createGame({
+    seed: 777, mode: 'survival', asteroidCount: 5, asteroidSpeed: 1,
+    durationSeconds: 45, spawnIntervalSeconds: 1.25, speedStages: [0.6, 1.4, 2.5],
+  });
+  game.ship.invulnerable = 1000;
+  let frames = 0;
+  while (game.status === 'playing' && frames++ < 2000) {
+    game = stepGame(game, {}, 0.05);
+    assert.ok(game.asteroids.length <= 30);
+  }
+  assert.equal(game.status, 'won');
+  assert.equal(game.elapsed, 45);
+});
+
+test('malformed speedStages are rejected and null keeps one speed', () => {
+  for (const speedStages of [
+    [], [0], [-1], [NaN], [Infinity], ['1'], [1, 2, 3, 4, 5, 6, 7], 1, 'fast', {},
+  ]) assert.throws(() => createGame({ mode: 'survival', speedStages }));
+  assert.equal(createGame({ mode: 'survival' }).settings.speedStages, null);
 });

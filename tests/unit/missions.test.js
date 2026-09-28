@@ -59,3 +59,16 @@ test('mission objectives reach the simulation while old JSON keeps waves', () =>
     assert.throws(() => validateMission({ ...fixture, ...changed }));
   }
 });
+
+test('staged survival presets reach the simulation and stay optional', () => {
+  const staged = validateMission({
+    ...fixture, mode: 'survival', durationSeconds: 45, speedStages: [0.6, 1.4, 2.5],
+  });
+  assert.deepEqual(staged.speedStages, [0.6, 1.4, 2.5]);
+  assert.deepEqual(createGame(staged).settings.speedStages, [0.6, 1.4, 2.5]);
+  assert.equal(validateMission({ ...fixture, mode: 'survival' }).speedStages, null);
+  assert.equal(validateMission(fixture).speedStages, null);
+  for (const speedStages of [[], [0], [-1], [NaN], ['1'], [1, 2, 3, 4, 5, 6, 7], 'fast']) {
+    assert.throws(() => validateMission({ ...fixture, mode: 'survival', speedStages }));
+  }
+});

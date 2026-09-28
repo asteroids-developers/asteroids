@@ -77,3 +77,32 @@ test('last-life collision at the deadline displays defeat rather than victory', 
   await expect(page.getByRole('heading', { name: 'Полёт завершён' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Миссия выполнена' })).toBeHidden();
 });
+
+test('a staged survival mission reports its current wave and speeds the flow up', async ({ page }) => {
+  await page.goto('/');
+  await page.getByLabel('Миссия', { exact: true }).selectOption('three-tides');
+  await expect(page.getByTestId('objective')).toHaveText('Продержитесь 45 секунд');
+  await expect(page.getByTestId('objective-progress')).toHaveText('Волна 1 из 3 · Осталось 45 с');
+  await expect(page.locator('#mission-difficulty')).toHaveText('Поток · 45 с · волн: 3');
+  await page.getByRole('button', { name: 'Начать полёт', exact: true }).click();
+  const speedAt = async elapsed => page.evaluate(seconds => {
+    const api = window.__ASTEROIDS_TEST__;
+    const state = api.getState();
+    state.elapsed = seconds;
+    state.ship.invulnerable = 100;
+    state.asteroids = [];
+    state.spawnCountdown = 0.001;
+    api.setState(state);
+    api.advance();
+    const rock = api.getState().asteroids[0];
+    return Math.hypot(rock.vx, rock.vy);
+  }, elapsed);
+  const slow = await speedAt(0);
+  await expect(page.getByTestId('objective-progress')).toHaveText('Волна 1 из 3 · Осталось 45 с');
+  const medium = await speedAt(15);
+  await expect(page.getByTestId('objective-progress')).toHaveText('Волна 2 из 3 · Осталось 30 с');
+  const fast = await speedAt(30);
+  await expect(page.getByTestId('objective-progress')).toHaveText('Волна 3 из 3 · Осталось 15 с');
+  expect(slow).toBeLessThan(medium);
+  expect(medium).toBeLessThan(fast);
+});
