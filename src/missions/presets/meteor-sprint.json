@@ -1,0 +1,12 @@
+{
+  "id": "meteor-sprint",
+  "title": "Метеоритный спринт",
+  "description": "Продержитесь 30 секунд и сделайте не меньше 10 попаданий. Каждую секунду справа врывается новый молниеносный астероид.",
+  "seed": 73,
+  "asteroidCount": 1,
+  "asteroidSpeed": 32,
+  "mode": "survival",
+  "durationSeconds": 30,
+  "spawnIntervalSeconds": 1,
+  "requiredHits": 10
+}

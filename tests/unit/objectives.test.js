@@ -90,6 +90,19 @@ test('survival completes exactly at its duration and then freezes', () => {
   assert.deepEqual(stepGame(won, {}, 0.05), won);
 });
 
+test('survival can require at least one hit before the deadline', () => {
+  const missed = createGame({ mode: 'survival', durationSeconds: 1, requiredHits: 1 });
+  missed.elapsed = 0.98;
+  missed.ship.invulnerable = 10;
+  assert.equal(stepGame(missed, {}, 0.05).status, 'gameover');
+
+  const hit = createGame({ mode: 'survival', durationSeconds: 1, requiredHits: 1 });
+  hit.elapsed = 0.98;
+  hit.destroyed = 1;
+  hit.ship.invulnerable = 10;
+  assert.equal(stepGame(hit, {}, 0.05).status, 'won');
+});
+
 test('losing the last life takes precedence over a timer victory', () => {
   const game = createGame({ mode: 'survival', durationSeconds: 1 });
   game.elapsed = 0.98;
@@ -166,6 +179,7 @@ test('invalid modes and survival timing are rejected', () => {
     { durationSeconds: Infinity }, { durationSeconds: 601 },
     { spawnIntervalSeconds: 0 }, { spawnIntervalSeconds: NaN },
     { spawnIntervalSeconds: 0.1 }, { spawnIntervalSeconds: 11 },
+    { requiredHits: -1 }, { requiredHits: 1.5 },
   ]) assert.throws(() => createGame(settings));
 });
 

@@ -10,6 +10,7 @@ const SHIP_RADIUS = 12;
 export function validateSettings({
   seed, asteroidCount, asteroidSpeed, mode = 'waves',
   durationSeconds = 60, spawnIntervalSeconds = 1.25, ufoEnabled = false,
+  requiredHits,
 }) {
   if (typeof ufoEnabled !== 'boolean' || (ufoEnabled && mode !== 'survival')) throw new TypeError('UFO requires survival mode and a boolean flag');
   if (!['waves', 'clear', 'survival', 'dream-rally'].includes(mode)) throw new TypeError('unknown mission mode');
@@ -27,13 +28,19 @@ export function validateSettings({
   if (!Number.isFinite(asteroidSpeed) || asteroidSpeed <= 0) {
     throw new RangeError('asteroidSpeed must be finite and positive');
   }
+  if (requiredHits !== undefined && (!Number.isInteger(requiredHits) || requiredHits < 0 || requiredHits > 1000)) {
+    throw new RangeError('requiredHits must be an integer between 0 and 1000');
+  }
 }
 
-export function createGame({
-  seed = 1, asteroidCount = 5, asteroidSpeed = 1, mode = 'waves',
-  durationSeconds = 60, spawnIntervalSeconds = 1.25, ufoEnabled = false,
-} = {}) {
+export function createGame(options = {}) {
+  const {
+    seed = 1, asteroidCount = 5, asteroidSpeed = 1, mode = 'waves',
+    durationSeconds = 60, spawnIntervalSeconds = 1.25, ufoEnabled = false,
+    requiredHits,
+  } = options;
   const settings = { seed, asteroidCount, asteroidSpeed, mode, durationSeconds, spawnIntervalSeconds, ufoEnabled };
+  if (requiredHits !== undefined) settings.requiredHits = requiredHits;
   validateSettings(settings);
   const state = {
     status: 'playing', score: 0, lives: 3, wave: 1, elapsed: 0, destroyed: 0,
@@ -188,7 +195,7 @@ export function stepGame(previous, input = {}, dt = 1 / 60) {
   }
   if (survival) {
     if (state.elapsed >= state.settings.durationSeconds) {
-      state.status = 'won';
+      state.status = state.destroyed >= (state.settings.requiredHits ?? 0) ? 'won' : 'gameover';
     } else {
       state.spawnCountdown -= dt;
       if (state.spawnCountdown <= 0) {
