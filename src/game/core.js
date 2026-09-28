@@ -1,6 +1,7 @@
 // Simulation uses seconds and logical pixels; browser rendering is a separate adapter.
 import { WORLD, RADII, wrap, toroidalDistance } from './world.js';
 import { makeAsteroid, spawnWave, spawnIncoming } from './spawn.js';
+import { createRally, prepareRally, advanceRally, rallySpawnInterval, RALLY } from './rally.js';
 export { WORLD, RADII, toroidalDistance } from './world.js';
 export { stageIndex } from './spawn.js';
 const POINTS = { 1: 100, 2: 50, 3: 20 };
@@ -10,7 +11,7 @@ export function validateSettings({
   seed, asteroidCount, asteroidSpeed, mode = 'waves',
   durationSeconds = 60, spawnIntervalSeconds = 1.25, speedStages = null,
 }) {
-  if (!['waves', 'clear', 'survival'].includes(mode)) throw new TypeError('unknown mission mode');
+  if (!['waves', 'clear', 'survival', 'dream-rally'].includes(mode)) throw new TypeError('unknown mission mode');
   if (speedStages !== null && speedStages !== undefined) {
     if (!Array.isArray(speedStages) || speedStages.length < 1 || speedStages.length > 6) {
       throw new TypeError('speedStages must be an array of 1 to 6 multipliers');
@@ -25,6 +26,7 @@ export function validateSettings({
   if (!Number.isFinite(spawnIntervalSeconds) || spawnIntervalSeconds < 0.25 || spawnIntervalSeconds > 10) {
     throw new RangeError('spawnIntervalSeconds must be between 0.25 and 10');
   }
+  if (mode === 'dream-rally' && durationSeconds < 45) throw new RangeError('dream-rally needs at least 45 seconds');
   if (!Number.isSafeInteger(seed)) throw new TypeError('seed must be a safe integer');
   if (!Number.isInteger(asteroidCount) || asteroidCount < 1 || asteroidCount > 30) {
     throw new RangeError('asteroidCount must be between 1 and 30');
@@ -50,6 +52,7 @@ export function createGame({
     asteroids: [], bullets: [],
   };
   spawnWave(state);
+  if (mode === 'dream-rally') state.rally = createRally(state);
   return state;
 }
 
@@ -61,7 +64,7 @@ function newShip() {
 }
 
 function distanceToRock(state, body, rock) {
-  return state.settings.mode === 'survival'
+  return ['survival', 'dream-rally'].includes(state.settings.mode)
     ? Math.hypot(body.x - rock.x, body.y - rock.y)
     : toroidalDistance(body, rock);
 }
@@ -81,20 +84,25 @@ function steer(state, input, dt) {
     ship.vy += Math.sin(ship.angle) * 230 * dt;
   }
   const speed = Math.hypot(ship.vx, ship.vy);
-  const scale = speed > 340 ? 340 / speed : 1;
+  const limit = state.rally?.dashRemaining > 0 ? RALLY.dashSpeed : 340;
+  const scale = speed > limit ? limit / speed : 1;
   ship.vx *= scale * Math.exp(-0.12 * dt);
   ship.vy *= scale * Math.exp(-0.12 * dt);
   move(ship, dt);
   if (input.fire && ship.cooldown <= 0) {
-    ship.cooldown = 0.18;
-    state.bullets.push({
-      id: state.nextId++,
-      x: wrap(ship.x + Math.cos(ship.angle) * 19, WORLD.width),
-      y: wrap(ship.y + Math.sin(ship.angle) * 19, WORLD.height),
-      vx: Math.cos(ship.angle) * 550 + ship.vx,
-      vy: Math.sin(ship.angle) * 550 + ship.vy,
-      ttl: 1.25,
-    });
+    const powered = state.rally?.powerRemaining > 0;
+    ship.cooldown = powered ? 0.13 : 0.18;
+    for (const spread of powered ? [-0.18, 0, 0.18] : [0]) {
+      const angle = ship.angle + spread;
+      state.bullets.push({
+        id: state.nextId++,
+        x: wrap(ship.x + Math.cos(angle) * 19, WORLD.width),
+        y: wrap(ship.y + Math.sin(angle) * 19, WORLD.height),
+        vx: Math.cos(angle) * 550 + ship.vx,
+        vy: Math.sin(angle) * 550 + ship.vy,
+        ttl: 1.25,
+      });
+    }
   }
 }
 
@@ -123,11 +131,22 @@ function resolveHits(state) {
   const hit = state.asteroids.some(rock =>
     distanceToRock(state, state.ship, rock) < SHIP_RADIUS + RADII[rock.size]);
   if (!hit) return;
+  damageShip(state);
+}
+
+function damageShip(state) {
+  if (state.status !== 'playing' || state.ship.invulnerable > 0) return;
+  if (state.rally?.shields > 0) {
+    state.rally.shields--;
+    state.ship.invulnerable = 1;
+    return;
+  }
   state.lives--;
   if (state.lives === 0) {
     state.status = 'gameover';
   } else {
     state.ship = { ...newShip(), invulnerable: 2 };
+    if (state.rally) { state.rally.dashRemaining = 0; state.rally.powerRemaining = 0; }
   }
 }
 
@@ -137,9 +156,10 @@ export function stepGame(previous, input = {}, dt = 1 / 60) {
   if (previous.status !== 'playing' || dt === 0) return previous;
   const state = structuredClone(previous);
   dt = Math.min(dt, 0.05);
-  const survival = state.settings.mode === 'survival';
+  const survival = ['survival', 'dream-rally'].includes(state.settings.mode);
   if (survival) dt = Math.min(dt, Math.max(0, state.settings.durationSeconds - state.elapsed));
   state.elapsed = survival ? Math.min(state.settings.durationSeconds, state.elapsed + dt) : state.elapsed + dt;
+  if (state.rally) prepareRally(state, input, dt);
   steer(state, input, dt);
   for (const rock of state.asteroids) {
     if (survival) {
@@ -164,6 +184,16 @@ export function stepGame(previous, input = {}, dt = 1 / 60) {
   resolveHits(state);
   // Collision loss takes precedence over completing an objective in the same step.
   if (state.status !== 'playing') return state;
+  if (state.rally) {
+    advanceRally(state, dt, damageShip);
+    if (state.status !== 'playing') return state;
+    state.spawnCountdown -= dt;
+    if (state.spawnCountdown <= 0) {
+      spawnIncoming(state);
+      state.spawnCountdown += rallySpawnInterval(state);
+    }
+    return state;
+  }
   if (survival) {
     if (state.elapsed >= state.settings.durationSeconds) {
       state.status = 'won';

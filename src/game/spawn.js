@@ -3,7 +3,7 @@ import { WORLD, RADII, toroidalDistance } from './world.js';
 const SAFE_DISTANCE = 180;
 const GAP = 12;
 
-function random(state) {
+export function random(state) {
   state.rng = (Math.imul(state.rng, 1664525) + 1013904223) >>> 0;
   return state.rng / 4294967296;
 }
@@ -29,11 +29,12 @@ export function stageSpeed(state) {
 }
 
 export function makeAsteroid(state, x, y, size) {
-  const direction = state.settings.mode === 'survival'
+  const direction = ['survival', 'dream-rally'].includes(state.settings.mode)
     ? Math.PI + (random(state) - 0.5) * 0.28
     : random(state) * Math.PI * 2;
   const speed = (30 + random(state) * 35) * stageSpeed(state)
-    * (1 + (state.wave - 1) * 0.08) * (1 + (3 - size) * 0.25);
+    * (1 + (state.wave - 1) * 0.08) * (1 + (3 - size) * 0.25)
+    * (state.rally?.phase === 'storm' ? 1.7 : state.rally?.phase === 'escape' ? 2 : 1);
   return {
     id: state.nextId++, x, y, size,
     vx: Math.cos(direction) * speed, vy: Math.sin(direction) * speed,
@@ -49,7 +50,7 @@ function separated(position, positions, ship) {
 function positionsForWave(state, count) {
   const positions = [];
   for (let attempt = 0; attempt < count * 80 && positions.length < count; attempt++) {
-    const margin = state.settings.mode === 'survival' ? RADII[3] : 0;
+    const margin = ['survival', 'dream-rally'].includes(state.settings.mode) ? RADII[3] : 0;
     const position = {
       x: margin + random(state) * (WORLD.width - 2 * margin),
       y: margin + random(state) * (WORLD.height - 2 * margin),
