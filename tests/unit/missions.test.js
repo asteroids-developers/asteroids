@@ -14,7 +14,7 @@ test('all checked-in missions satisfy the contract and start a game', () => {
   assert.ok(missions.length >= 2);
   for (const mission of missions) {
     const game = createGame(mission);
-    assert.equal(game.asteroids.length, mission.asteroidCount);
+    assert.equal(game.asteroids.length, mission.mode === 'boss' ? 0 : mission.asteroidCount);
     assert.equal(game.settings.seed, mission.seed);
     assert.equal(game.settings.asteroidSpeed, mission.asteroidSpeed);
   }

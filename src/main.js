@@ -16,6 +16,13 @@ const fieldLabel = document.querySelector('#field-label');
 const objective = document.querySelector('[data-testid="objective"]');
 const objectiveProgress = document.querySelector('[data-testid="objective-progress"]');
 const missionProgress = document.querySelector('#mission-progress');
+const bossHud = document.querySelector('#boss-hud');
+const bossHealth = document.querySelector('#boss-health');
+const bossPhase = document.querySelector('[data-testid="boss-phase"]');
+const attackWarning = document.querySelector('#attack-warning');
+const flightPanel = document.querySelector('.flight-panel');
+const fullscreenButton = document.querySelector('#fullscreen');
+const arena = document.querySelector('.arena');
 const overlayTitle = document.querySelector('#overlay-title');
 const overlayCopy = document.querySelector('#overlay-copy');
 const overlayTag = document.querySelector('#overlay-tag');
@@ -49,9 +56,25 @@ function updateHud() {
   score.textContent = state.score;
   lives.textContent = state.lives;
   const legacy = state.settings.mode === 'waves';
-  fieldLabel.textContent = legacy ? 'ВОЛНА' : 'АСТЕРОИДЫ';
-  fieldValue.textContent = legacy ? state.wave : state.asteroids.filter(rock => rock.x + RADII[rock.size] >= 0 && rock.x - RADII[rock.size] <= WORLD.width).length;
-  missionProgress.hidden = legacy;
+  const bossMode = state.settings.mode === 'boss';
+  arena.classList.toggle('boss-arena', bossMode);
+  fieldLabel.textContent = legacy ? 'ВОЛНА' : bossMode ? 'ФАЗА' : 'АСТЕРОИДЫ';
+  fieldValue.textContent = legacy ? state.wave : bossMode ? state.boss.phase : state.asteroids.filter(rock => rock.x + RADII[rock.size] >= 0 && rock.x - RADII[rock.size] <= WORLD.width).length;
+  missionProgress.hidden = legacy || bossMode;
+  bossHud.hidden = !bossMode;
+  attackWarning.hidden = !bossMode || mode !== 'playing' || state.boss.attack?.stage !== 'warning';
+  if (bossMode) {
+    bossHud.dataset.phase = state.boss.phase;
+    bossHealth.value = state.boss.hp;
+    bossPhase.textContent = 'ФАЗА ' + state.boss.phase + ' / 3';
+    const kind = state.boss.attack?.kind;
+    attackWarning.textContent = kind === 'laser' ? '⚠ ЛАЗЕРНЫЙ ЗАЛП — УЙДИТЕ ИЗ ПОЛОСЫ'
+      : kind === 'both' ? '⚠ АСТЕРОИДЫ С ДВУХ СТОРОН'
+        : '⚠ АСТЕРОИДЫ ' + (kind === 'right' ? 'СПРАВА' : 'СЛЕВА');
+    objective.textContent = 'Уничтожьте Железного стража';
+    objectiveProgress.textContent = 'Здоровье врага: ' + state.boss.hp + ' / ' + state.boss.maxHp;
+    return;
+  }
   if (state.settings.mode === 'clear') {
     const total = state.settings.asteroidCount * 7;
     objective.textContent = 'Очистите одну волну';
@@ -77,12 +100,13 @@ function finish() {
   status.textContent = won ? 'Миссия выполнена' : 'Полёт завершён';
   overlayTitle.textContent = status.textContent;
   overlayTag.textContent = won ? 'ЦЕЛЬ ДОСТИГНУТА' : 'РАЗБОР ВЫЛЕТА';
-  const result = state.settings.mode === 'survival' ? 'Вы выдержали весь поток.' : 'Сектор очищен.';
+  const result = state.settings.mode === 'boss' ? 'Железный страж уничтожен.' : state.settings.mode === 'survival' ? 'Вы выдержали весь поток.' : 'Сектор очищен.';
   overlayCopy.textContent = (won ? result + ' ' : '') + 'Ваш результат: ' + state.score + ' очков.';
   startButton.textContent = won ? 'Повторить миссию' : 'Начать заново';
   pauseButton.disabled = true;
   overlay.hidden = false;
-  startButton.focus();
+  updateHud();
+  overlayTitle.focus();
 }
 
 function advance(controls = input(), dt = 1 / 60) {
@@ -112,13 +136,14 @@ function togglePause() {
   accumulator = 0;
   pauseButton.textContent = mode === 'paused' ? 'Продолжить' : 'Пауза';
   status.textContent = mode === 'paused' ? 'Пауза' : 'Полёт идёт';
+  updateHud();
   if (mode === 'playing') canvas.focus();
 }
 
 function updateMissionBriefing() {
   document.querySelector('#mission-title').textContent = settings.title;
   document.querySelector('#mission-description').textContent = settings.description;
-  document.querySelector('#mission-difficulty').textContent = settings.mode === 'clear' ? 'Одна волна' : settings.mode === 'survival' ? 'Поток · ' + settings.durationSeconds + ' с' : 'Бесконечные волны';
+  document.querySelector('#mission-difficulty').textContent = settings.mode === 'boss' ? 'Босс · 3 фазы' : settings.mode === 'clear' ? 'Одна волна' : settings.mode === 'survival' ? 'Поток · ' + settings.durationSeconds + ' с' : 'Бесконечные волны';
   overlayCopy.textContent = settings.description;
   document.querySelector('#flight-label').textContent = 'МИССИЯ / ' + settings.title.toUpperCase();
 }
@@ -141,8 +166,25 @@ missionPicker.addEventListener('change', () => {
 });
 startButton.addEventListener('click', start);
 pauseButton.addEventListener('click', togglePause);
+fullscreenButton.addEventListener('click', async () => {
+  if (document.fullscreenElement === flightPanel) await document.exitFullscreen();
+  else await flightPanel.requestFullscreen();
+});
+document.addEventListener('fullscreenchange', () => {
+  fullscreenButton.textContent = document.fullscreenElement === flightPanel ? 'Обычный размер' : 'На весь экран';
+});
+window.addEventListener('keydown', event => {
+  if (event.code === 'Escape' && document.fullscreenElement === flightPanel) {
+    event.preventDefault();
+    document.exitFullscreen();
+  }
+});
 const gameKeys = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'KeyA', 'KeyD', 'KeyW', 'Space']);
 window.addEventListener('keydown', event => {
+  if (event.code === 'Space' && mode === 'ended') {
+    event.preventDefault();
+    return;
+  }
   if (event.target.closest?.('button, select, input, textarea, a')) return;
   if (event.code === 'KeyP' && !event.repeat) {
     event.preventDefault();

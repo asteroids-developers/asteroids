@@ -1,6 +1,7 @@
 // Simulation uses seconds and logical pixels; browser rendering is a separate adapter.
 import { WORLD, RADII, wrap, toroidalDistance } from './world.js';
 import { makeAsteroid, spawnWave, spawnIncoming } from './spawn.js';
+import { createBoss, stepBoss, resolveBossHits, bossHazardHitsShip } from './boss.js';
 export { WORLD, RADII, toroidalDistance } from './world.js';
 const POINTS = { 1: 100, 2: 50, 3: 20 };
 const SHIP_RADIUS = 12;
@@ -9,7 +10,7 @@ export function validateSettings({
   seed, asteroidCount, asteroidSpeed, mode = 'waves',
   durationSeconds = 60, spawnIntervalSeconds = 1.25,
 }) {
-  if (!['waves', 'clear', 'survival'].includes(mode)) throw new TypeError('unknown mission mode');
+  if (!['waves', 'clear', 'survival', 'boss'].includes(mode)) throw new TypeError('unknown mission mode');
   if (!Number.isFinite(durationSeconds) || durationSeconds < 1 || durationSeconds > 600) {
     throw new RangeError('durationSeconds must be between 1 and 600');
   }
@@ -35,9 +36,9 @@ export function createGame({
     status: 'playing', score: 0, lives: 3, wave: 1, elapsed: 0, destroyed: 0,
     spawnCountdown: spawnIntervalSeconds,
     settings, rng: seed >>> 0, nextId: 1, ship: newShip(),
-    asteroids: [], bullets: [],
+    asteroids: [], bullets: [], boss: mode === 'boss' ? createBoss() : null,
   };
-  spawnWave(state);
+  if (mode !== 'boss') spawnWave(state);
   return state;
 }
 
@@ -49,7 +50,7 @@ function newShip() {
 }
 
 function distanceToRock(state, body, rock) {
-  return state.settings.mode === 'survival'
+  return ['survival', 'boss'].includes(state.settings.mode)
     ? Math.hypot(body.x - rock.x, body.y - rock.y)
     : toroidalDistance(body, rock);
 }
@@ -98,7 +99,7 @@ function resolveHits(state) {
       spent.add(shot.id);
       state.score += POINTS[rock.size];
       state.destroyed++;
-      if (rock.size > 1) {
+      if (rock.size > 1 && !rock.bossProjectile) {
         fragments.push(makeAsteroid(state, rock.x, rock.y, rock.size - 1));
         fragments.push(makeAsteroid(state, rock.x, rock.y, rock.size - 1));
       }
@@ -107,9 +108,12 @@ function resolveHits(state) {
   }
   state.bullets = state.bullets.filter(shot => !spent.has(shot.id));
   state.asteroids = state.asteroids.filter(rock => !destroyed.has(rock.id)).concat(fragments);
+  if (state.boss) resolveBossHits(state);
+  if (state.status !== 'playing') return;
   if (state.ship.invulnerable > 0) return;
   const hit = state.asteroids.some(rock =>
-    distanceToRock(state, state.ship, rock) < SHIP_RADIUS + RADII[rock.size]);
+    distanceToRock(state, state.ship, rock) < SHIP_RADIUS + RADII[rock.size])
+    || (state.boss && bossHazardHitsShip(state));
   if (!hit) return;
   state.lives--;
   if (state.lives === 0) {
@@ -126,15 +130,17 @@ export function stepGame(previous, input = {}, dt = 1 / 60) {
   const state = structuredClone(previous);
   dt = Math.min(dt, 0.05);
   const survival = state.settings.mode === 'survival';
+  const bossMode = state.settings.mode === 'boss';
   if (survival) dt = Math.min(dt, Math.max(0, state.settings.durationSeconds - state.elapsed));
   state.elapsed = survival ? Math.min(state.settings.durationSeconds, state.elapsed + dt) : state.elapsed + dt;
   steer(state, input, dt);
+  if (bossMode) stepBoss(state, dt);
   for (const rock of state.asteroids) {
-    if (survival) {
+    if (survival || bossMode) {
       rock.x += rock.vx * dt;
       rock.y += rock.vy * dt;
       const radius = RADII[rock.size];
-      if (rock.y < radius || rock.y > WORLD.height - radius) {
+      if (survival && (rock.y < radius || rock.y > WORLD.height - radius)) {
         rock.y = Math.max(radius, Math.min(WORLD.height - radius, rock.y));
         rock.vy *= -1;
       }
@@ -144,6 +150,9 @@ export function stepGame(previous, input = {}, dt = 1 / 60) {
     rock.angle += rock.spin * dt;
   }
   if (survival) state.asteroids = state.asteroids.filter(rock => rock.x >= -RADII[rock.size]);
+  if (bossMode) state.asteroids = state.asteroids.filter(rock =>
+    rock.x >= -RADII[rock.size] - 10 && rock.x <= WORLD.width + RADII[rock.size] + 10
+    && rock.y >= -RADII[rock.size] - 10 && rock.y <= WORLD.height + RADII[rock.size] + 10);
   for (const shot of state.bullets) {
     move(shot, dt);
     shot.ttl -= dt;
@@ -162,7 +171,7 @@ export function stepGame(previous, input = {}, dt = 1 / 60) {
         state.spawnCountdown += state.settings.spawnIntervalSeconds;
       }
     }
-  } else if (state.asteroids.length === 0) {
+  } else if (!bossMode && state.asteroids.length === 0) {
     if (state.settings.mode === 'clear') state.status = 'won';
     else { state.wave++; spawnWave(state); }
   }

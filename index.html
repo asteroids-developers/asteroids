@@ -27,17 +27,22 @@
           <progress id="mission-progress" aria-label="Прогресс миссии" max="21" value="0"></progress>
         </div>
         <div class="arena">
+          <div id="boss-hud" class="boss-hud" data-testid="boss-hud" hidden>
+            <div class="boss-hud-line"><span>ЦЕЛЬ / ЖЕЛЕЗНЫЙ СТРАЖ</span><strong data-testid="boss-phase">ФАЗА 1 / 3</strong></div>
+            <progress id="boss-health" data-testid="boss-health" aria-label="Здоровье врага" max="24" value="24"></progress>
+          </div>
+          <div id="attack-warning" class="attack-warning" data-testid="attack-warning" role="status" hidden></div>
           <canvas id="game" width="960" height="640" tabindex="0" aria-label="Игровое поле. Стрелки или WASD — движение, пробел — огонь.">Для игры нужен браузер с поддержкой Canvas.</canvas>
           <section id="overlay" class="overlay" aria-labelledby="overlay-title">
             <div class="overlay-card">
               <span id="overlay-tag" class="eyebrow">ПРЕДПОЛЁТНЫЙ БРИФИНГ</span>
-              <h2 id="overlay-title">Готовы к вылету?</h2>
+              <h2 id="overlay-title" tabindex="-1">Готовы к вылету?</h2>
               <p id="overlay-copy">Три жизни. Бесконечный космос.<br>Держите курс и не забывайте про инерцию.</p>
               <button id="start" class="button primary">Начать полёт <span aria-hidden="true">↗</span></button>
             </div>
           </section>
         </div>
-        <div class="flight-footer"><span id="flight-label">СЕКТОР 01 / УЧЕБНЫЙ ВЫЛЕТ</span><button id="pause" class="button quiet" disabled>Пауза</button></div>
+        <div class="flight-footer"><span id="flight-label">СЕКТОР 01 / УЧЕБНЫЙ ВЫЛЕТ</span><div class="flight-actions"><button id="fullscreen" class="button quiet" type="button">На весь экран</button><button id="pause" class="button quiet" disabled>Пауза</button></div></div>
       </section>
       <aside class="sidebar" aria-label="Брифинг и управление">
         <section class="briefing">
