@@ -1,0 +1,11 @@
+{
+  "id": "last-signal",
+  "title": "Последний сигнал",
+  "description": "Передатчик станции «Лира-7» завершит отправку координат через 45 секунд. Выживите в метеорном потоке и сохраните последний сигнал.",
+  "seed": 1701,
+  "asteroidCount": 5,
+  "asteroidSpeed": 1.35,
+  "mode": "survival",
+  "durationSeconds": 45,
+  "spawnIntervalSeconds": 0.8
+}
