@@ -2,14 +2,23 @@
 import { WORLD, RADII, wrap, toroidalDistance } from './world.js';
 import { makeAsteroid, spawnWave, spawnIncoming } from './spawn.js';
 export { WORLD, RADII, toroidalDistance } from './world.js';
+export { stageIndex } from './spawn.js';
 const POINTS = { 1: 100, 2: 50, 3: 20 };
 const SHIP_RADIUS = 12;
 
 export function validateSettings({
   seed, asteroidCount, asteroidSpeed, mode = 'waves',
-  durationSeconds = 60, spawnIntervalSeconds = 1.25,
+  durationSeconds = 60, spawnIntervalSeconds = 1.25, speedStages = null,
 }) {
   if (!['waves', 'clear', 'survival'].includes(mode)) throw new TypeError('unknown mission mode');
+  if (speedStages !== null && speedStages !== undefined) {
+    if (!Array.isArray(speedStages) || speedStages.length < 1 || speedStages.length > 6) {
+      throw new TypeError('speedStages must be an array of 1 to 6 multipliers');
+    }
+    if (!speedStages.every(factor => Number.isFinite(factor) && factor > 0)) {
+      throw new RangeError('speedStages multipliers must be finite and positive');
+    }
+  }
   if (!Number.isFinite(durationSeconds) || durationSeconds < 1 || durationSeconds > 600) {
     throw new RangeError('durationSeconds must be between 1 and 600');
   }
@@ -27,9 +36,12 @@ export function validateSettings({
 
 export function createGame({
   seed = 1, asteroidCount = 5, asteroidSpeed = 1, mode = 'waves',
-  durationSeconds = 60, spawnIntervalSeconds = 1.25,
+  durationSeconds = 60, spawnIntervalSeconds = 1.25, speedStages = null,
 } = {}) {
-  const settings = { seed, asteroidCount, asteroidSpeed, mode, durationSeconds, spawnIntervalSeconds };
+  const settings = {
+    seed, asteroidCount, asteroidSpeed, mode, durationSeconds, spawnIntervalSeconds,
+    speedStages: speedStages ? [...speedStages] : null,
+  };
   validateSettings(settings);
   const state = {
     status: 'playing', score: 0, lives: 3, wave: 1, elapsed: 0, destroyed: 0,
