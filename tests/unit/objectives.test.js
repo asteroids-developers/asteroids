@@ -206,3 +206,106 @@ test('later dense waves stay safe when the ship is near a corner', () => {
   assert.equal(next.asteroids.length, 30);
   assert.ok(next.asteroids.every(rock => toroidalDistance(rock, next.ship) >= 180));
 });
+
+test('combat enemies chase, fire, and can all be destroyed for victory', () => {
+  let game = createGame({ mode: 'combat', asteroidCount: 0, enemyCount: 3, seed: 73 });
+  assert.equal(game.asteroids.length, 0);
+  assert.equal(game.enemies.length, 3);
+  game.ship.invulnerable = 100;
+  let moved = stepGame(game, {}, 0.05);
+  assert.notEqual(moved.enemies[0].x, game.enemies[0].x);
+  moved.enemies[0].cooldown = 0.01;
+  moved = stepGame(moved, {}, 0.02);
+  assert.equal(moved.enemyBullets.length, 1);
+  for (let i = 0; i < 3; i++) {
+    const target = moved.enemies[0];
+    moved.bullets = [bullet(moved.nextId++, target.x, target.y)];
+    moved = stepGame(moved, {}, 0.01);
+  }
+  assert.equal(moved.status, 'won');
+  assert.equal(moved.enemiesDestroyed, 3);
+  assert.equal(moved.score, 600);
+});
+
+test('enemy shots cost one life and respect respawn invulnerability', () => {
+  const game = createGame({ mode: 'combat', asteroidCount: 0, enemyCount: 1 });
+  game.enemyBullets = [bullet(100, game.ship.x, game.ship.y)];
+  const hit = stepGame(game, {}, 0.01);
+  assert.equal(hit.lives, 2);
+  assert.equal(hit.ship.invulnerable, 2);
+  assert.equal(hit.status, 'playing');
+  const safe = stepGame(hit, {}, 0.01);
+  assert.equal(safe.lives, 2);
+});
+
+test('combat rejects missing or excessive enemies', () => {
+  for (const enemyCount of [0, -1, 4, 1.5]) {
+    assert.throws(() => createGame({ mode: 'combat', asteroidCount: 0, enemyCount }));
+  }
+});
+
+test('one enemy takes only one hit per step even with two shots across the edge', () => {
+  const game = createGame({ mode: 'combat', asteroidCount: 0, enemyCount: 1 });
+  game.enemies = [{ id: 100, x: WORLD.width - 2, y: 100, angle: 0, cooldown: 10 }];
+  game.bullets = [bullet(101, 2, 100), bullet(102, 3, 100)];
+  const won = stepGame(game, {}, 0.01);
+  assert.equal(won.status, 'won');
+  assert.equal(won.enemiesDestroyed, 1);
+  assert.equal(won.score, 200);
+});
+
+test('boss takes five separate hits and keeps the mission active after the squadron falls', () => {
+  let game = createGame({ mode: 'combat', asteroidCount: 0, enemyCount: 3, bossLives: 5 });
+  assert.equal(game.boss.lives, 5);
+  game.ship.invulnerable = 100;
+  game.enemies = [];
+  game.enemiesDestroyed = 3;
+  for (let hit = 1; hit <= 5; hit++) {
+    const target = game.boss;
+    game.bullets = [bullet(game.nextId++, target.x, target.y)];
+    game = stepGame(game, {}, 0.01);
+    assert.equal(game.bossHits, hit);
+    assert.equal(game.status, hit === 5 ? 'won' : 'playing');
+    if (hit < 5) assert.equal(game.boss.lives, 5 - hit);
+  }
+  assert.equal(game.boss, null);
+  assert.equal(game.score, 500);
+});
+
+test('two shots in one step cost the boss two lives, and wraparound hits count', () => {
+  const game = createGame({ mode: 'combat', asteroidCount: 0, enemyCount: 1, bossLives: 5 });
+  game.boss.x = WORLD.width - 2;
+  game.boss.y = 100;
+  game.bullets = [bullet(100, 2, 100), bullet(101, 3, 100)];
+  const next = stepGame(game, {}, 0.01);
+  assert.equal(next.boss.lives, 3);
+  assert.equal(next.bossHits, 2);
+  assert.equal(next.status, 'playing');
+});
+
+test('boss health is valid only in combat', () => {
+  for (const bossLives of [-1, 1.5, 21]) {
+    assert.throws(() => createGame({ mode: 'combat', enemyCount: 1, bossLives }));
+  }
+  assert.throws(() => createGame({ mode: 'clear', bossLives: 5 }));
+});
+
+test('boss fires and contact costs a life, then restart restores its health', () => {
+  const game = createGame({ mode: 'combat', asteroidCount: 0, enemyCount: 1, bossLives: 5 });
+  game.enemies = [];
+  game.boss.cooldown = 0.01;
+  game.ship.invulnerable = 100;
+  const fired = stepGame(game, {}, 0.02);
+  assert.equal(fired.enemyBullets.length, 1);
+  fired.ship.invulnerable = 0;
+  fired.enemyBullets = [];
+  fired.ship.x = fired.boss.x;
+  fired.ship.y = fired.boss.y;
+  const hit = stepGame(fired, {}, 0.01);
+  assert.equal(hit.lives, 2);
+  assert.equal(hit.status, 'playing');
+  hit.boss.lives = 1;
+  const restarted = createGame(hit.settings);
+  assert.equal(restarted.boss.lives, 5);
+  assert.equal(restarted.bossHits, 0);
+});

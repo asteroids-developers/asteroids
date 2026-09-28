@@ -9,7 +9,7 @@ test('mission selection updates the briefing and the simulation', async ({ page 
   await page.getByRole('button', { name: 'Начать полёт', exact: true }).click();
   await expect(picker).toBeDisabled();
   const settings = await page.evaluate(() => window.__ASTEROIDS_TEST__.getState().settings);
-  expect(settings).toEqual({ seed: 2026, asteroidCount: 8, asteroidSpeed: 1.6, mode: 'survival', durationSeconds: 60, spawnIntervalSeconds: 1.25 });
+  expect(settings).toEqual({ seed: 2026, asteroidCount: 8, asteroidSpeed: 1.6, mode: 'survival', durationSeconds: 60, spawnIntervalSeconds: 1.25, enemyCount: 0, bossLives: 0 });
 });
 
 test('a finished flight permits choosing a different mission', async ({ page }) => {

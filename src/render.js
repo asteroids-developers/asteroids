@@ -51,6 +51,31 @@ export function createRenderer(canvas) {
         ctx.closePath(); ctx.fill(); ctx.stroke();
       }, state.settings.mode !== 'survival');
     }
+    for (const enemy of state.enemies) {
+      wrapped(enemy, () => {
+        ctx.strokeStyle = '#ff6b79'; ctx.fillStyle = '#54212c'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(16, 0); ctx.lineTo(-10, -12);
+        ctx.lineTo(-5, 0); ctx.lineTo(-10, 12); ctx.closePath();
+        ctx.fill(); ctx.stroke();
+      });
+    }
+    if (state.boss) {
+      wrapped(state.boss, () => {
+        ctx.strokeStyle = '#ff9a64'; ctx.fillStyle = '#663024'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(30, 0); ctx.lineTo(0, -24);
+        ctx.lineTo(-28, -18); ctx.lineTo(-18, 0); ctx.lineTo(-28, 18);
+        ctx.lineTo(0, 24); ctx.closePath(); ctx.fill(); ctx.stroke();
+        ctx.save(); ctx.rotate(-state.boss.angle);
+        ctx.fillStyle = '#3b2630'; ctx.fillRect(-30, -39, 60, 6);
+        ctx.fillStyle = '#ff9a64';
+        ctx.fillRect(-30, -39, 60 * state.boss.lives / state.settings.bossLives, 6);
+        ctx.restore();
+      });
+    }
+    ctx.fillStyle = '#ff6b79';
+    for (const shot of state.enemyBullets) {
+      wrapped(shot, () => { ctx.beginPath(); ctx.arc(0, 0, 3, 0, Math.PI * 2); ctx.fill(); });
+    }
     ctx.fillStyle = '#ffd29a';
     for (const shot of state.bullets) {
       wrapped(shot, () => { ctx.beginPath(); ctx.arc(0, 0, 2.5, 0, Math.PI * 2); ctx.fill(); }, state.settings.mode !== 'survival');

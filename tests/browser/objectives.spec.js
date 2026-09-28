@@ -77,3 +77,24 @@ test('last-life collision at the deadline displays defeat rather than victory', 
   await expect(page.getByRole('heading', { name: 'Полёт завершён' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Миссия выполнена' })).toBeHidden();
 });
+
+test('combat mission shows the boss health and wins after the last hit', async ({ page }) => {
+  await page.goto('/');
+  await page.getByLabel('Миссия', { exact: true }).selectOption('enemy-squadron');
+  await expect(page.getByTestId('objective')).toHaveText('Уничтожьте эскадрилью и босса');
+  await expect(page.getByTestId('objective-progress')).toHaveText('Враги: 0 / 3 · Босс: 5 / 5 жизней');
+  await page.getByRole('button', { name: 'Начать полёт', exact: true }).click();
+  await page.evaluate(() => {
+    const api = window.__ASTEROIDS_TEST__;
+    const state = api.getState();
+    state.enemiesDestroyed = 3;
+    state.enemies = [];
+    state.bossHits = 4;
+    state.boss = { id: 100, x: 100, y: 100, angle: 0, cooldown: 10, lives: 1 };
+    state.bullets = [{ id: 101, x: 100, y: 100, vx: 0, vy: 0, ttl: 1 }];
+    api.setState(state);
+    api.advance();
+  });
+  await expect(page.getByRole('heading', { name: 'Миссия выполнена' })).toBeVisible();
+  await expect(page.getByTestId('objective-progress')).toHaveText('Враги: 3 / 3 · Босс: 0 / 5 жизней');
+});
