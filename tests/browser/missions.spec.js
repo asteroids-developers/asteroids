@@ -1,5 +1,30 @@
 import { test, expect } from '@playwright/test';
 
+test('speed corridor uses its mission settings and resets after victory', async ({ page }) => {
+  await page.goto('/');
+  await page.getByLabel('Миссия', { exact: true }).selectOption('speed-corridor');
+  await expect(page.getByRole('heading', { name: 'Скоростной коридор', exact: true })).toBeVisible();
+  await expect(page.getByTestId('objective')).toHaveText('Продержитесь 45 секунд');
+  await page.getByRole('button', { name: 'Начать полёт', exact: true }).click();
+  const settings = await page.evaluate(() => window.__ASTEROIDS_TEST__.getState().settings);
+  expect(settings).toEqual({ seed: 7319, asteroidCount: 10, asteroidSpeed: 2,
+    mode: 'survival', durationSeconds: 45, spawnIntervalSeconds: 0.75, ufoEnabled: false });
+  await page.evaluate(() => {
+    const api = window.__ASTEROIDS_TEST__;
+    const state = api.getState();
+    state.elapsed = 44.99;
+    state.ship.invulnerable = 100;
+    api.setState(state);
+    api.advance();
+  });
+  await expect(page.getByRole('heading', { name: 'Миссия выполнена' })).toBeVisible();
+  await expect(page.getByTestId('objective-progress')).toHaveText('Осталось 0 с');
+  await page.getByRole('button', { name: 'Повторить миссию', exact: true }).click();
+  await expect(page.getByTestId('objective-progress')).toHaveText('Осталось 45 с');
+  await expect(page.getByTestId('lives')).toHaveText('3');
+  expect(await page.evaluate(() => window.__ASTEROIDS_TEST__.getState().settings)).toEqual(settings);
+});
+
 test('mission selection updates the briefing and the simulation', async ({ page }) => {
   await page.goto('/');
   const picker = page.getByLabel('Миссия', { exact: true });

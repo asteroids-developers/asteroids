@@ -1,0 +1,11 @@
+{
+  "id": "speed-corridor",
+  "title": "Скоростной коридор",
+  "description": "Продержитесь 45 секунд в ускоренном потоке справа налево. Десять начальных астероидов и пополнение каждые 0,75 секунды: держите путь отхода открытым.",
+  "seed": 7319,
+  "asteroidCount": 10,
+  "asteroidSpeed": 2,
+  "mode": "survival",
+  "durationSeconds": 45,
+  "spawnIntervalSeconds": 0.75
+}
