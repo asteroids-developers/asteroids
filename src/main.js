@@ -59,8 +59,12 @@ function updateHud() {
     missionProgress.max = total;
     missionProgress.value = state.destroyed;
   } else if (state.settings.mode === 'survival') {
-    objective.textContent = 'Продержитесь ' + state.settings.durationSeconds + ' секунд';
-    objectiveProgress.textContent = 'Осталось ' + Math.ceil(Math.max(0, state.settings.durationSeconds - state.elapsed)) + ' с';
+    const requiredHits = state.settings.requiredHits ?? 0;
+    objective.textContent = 'Продержитесь ' + state.settings.durationSeconds + ' секунд'
+      + (requiredHits === 1 ? ' и попадите по астероиду'
+        : requiredHits > 1 ? ' и сделайте не меньше ' + requiredHits + ' попаданий' : '');
+    objectiveProgress.textContent = 'Осталось ' + Math.ceil(Math.max(0, state.settings.durationSeconds - state.elapsed)) + ' с'
+      + (requiredHits ? ' · Попадания: ' + Math.min(state.destroyed, requiredHits) + ' / ' + requiredHits : '');
     missionProgress.max = state.settings.durationSeconds;
     missionProgress.value = state.elapsed;
   } else {

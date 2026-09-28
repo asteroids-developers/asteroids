@@ -8,6 +8,7 @@ const SHIP_RADIUS = 12;
 export function validateSettings({
   seed, asteroidCount, asteroidSpeed, mode = 'waves',
   durationSeconds = 60, spawnIntervalSeconds = 1.25,
+  requiredHits,
 }) {
   if (!['waves', 'clear', 'survival'].includes(mode)) throw new TypeError('unknown mission mode');
   if (!Number.isFinite(durationSeconds) || durationSeconds < 1 || durationSeconds > 600) {
@@ -23,13 +24,19 @@ export function validateSettings({
   if (!Number.isFinite(asteroidSpeed) || asteroidSpeed <= 0) {
     throw new RangeError('asteroidSpeed must be finite and positive');
   }
+  if (requiredHits !== undefined && (!Number.isInteger(requiredHits) || requiredHits < 0 || requiredHits > 1000)) {
+    throw new RangeError('requiredHits must be an integer between 0 and 1000');
+  }
 }
 
-export function createGame({
-  seed = 1, asteroidCount = 5, asteroidSpeed = 1, mode = 'waves',
-  durationSeconds = 60, spawnIntervalSeconds = 1.25,
-} = {}) {
+export function createGame(options = {}) {
+  const {
+    seed = 1, asteroidCount = 5, asteroidSpeed = 1, mode = 'waves',
+    durationSeconds = 60, spawnIntervalSeconds = 1.25,
+    requiredHits,
+  } = options;
   const settings = { seed, asteroidCount, asteroidSpeed, mode, durationSeconds, spawnIntervalSeconds };
+  if (requiredHits !== undefined) settings.requiredHits = requiredHits;
   validateSettings(settings);
   const state = {
     status: 'playing', score: 0, lives: 3, wave: 1, elapsed: 0, destroyed: 0,
@@ -154,7 +161,7 @@ export function stepGame(previous, input = {}, dt = 1 / 60) {
   if (state.status !== 'playing') return state;
   if (survival) {
     if (state.elapsed >= state.settings.durationSeconds) {
-      state.status = 'won';
+      state.status = state.destroyed >= (state.settings.requiredHits ?? 0) ? 'won' : 'gameover';
     } else {
       state.spawnCountdown -= dt;
       if (state.spawnCountdown <= 0) {

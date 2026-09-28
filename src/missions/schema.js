@@ -13,13 +13,15 @@ export function validateMission(value) {
     }
   }
   validateSettings(value);
-  return Object.freeze({
+  const mission = {
     id: value.id, title: value.title.trim(), description: value.description.trim(),
     seed: value.seed, asteroidCount: value.asteroidCount, asteroidSpeed: value.asteroidSpeed,
     mode: value.mode ?? 'waves',
     durationSeconds: value.durationSeconds ?? 60,
     spawnIntervalSeconds: value.spawnIntervalSeconds ?? 1.25,
-  });
+  };
+  if (value.requiredHits !== undefined) mission.requiredHits = value.requiredHits;
+  return Object.freeze(mission);
 }
 
 export function loadMissions(values) {

@@ -77,3 +77,33 @@ test('last-life collision at the deadline displays defeat rather than victory', 
   await expect(page.getByRole('heading', { name: 'Полёт завершён' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Миссия выполнена' })).toBeHidden();
 });
+
+test('meteor sprint requires ten hits before its deadline', async ({ page }) => {
+  await page.goto('/');
+  await page.getByLabel('Миссия', { exact: true }).selectOption('meteor-sprint');
+  await expect(page.getByTestId('objective')).toHaveText('Продержитесь 30 секунд и сделайте не меньше 10 попаданий');
+  await expect(page.getByTestId('objective-progress')).toHaveText('Осталось 30 с · Попадания: 0 / 10');
+  await page.getByRole('button', { name: 'Начать полёт', exact: true }).click();
+  await page.evaluate(() => {
+    const api = window.__ASTEROIDS_TEST__;
+    const state = api.getState();
+    state.elapsed = 29.99;
+    state.destroyed = 9;
+    state.ship.invulnerable = 100;
+    api.setState(state);
+    api.advance();
+  });
+  await expect(page.getByRole('heading', { name: 'Полёт завершён' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Начать заново', exact: true }).click();
+  await page.evaluate(() => {
+    const api = window.__ASTEROIDS_TEST__;
+    const state = api.getState();
+    state.elapsed = 29.99;
+    state.destroyed = 10;
+    state.ship.invulnerable = 100;
+    api.setState(state);
+    api.advance();
+  });
+  await expect(page.getByRole('heading', { name: 'Миссия выполнена' })).toBeVisible();
+});
