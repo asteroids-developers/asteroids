@@ -19,6 +19,10 @@ const missionProgress = document.querySelector('#mission-progress');
 const overlayTitle = document.querySelector('#overlay-title');
 const overlayCopy = document.querySelector('#overlay-copy');
 const overlayTag = document.querySelector('#overlay-tag');
+const actionLabel = document.querySelector('#action-label');
+const actionKey = document.querySelector('#action-key');
+const controlNote = document.querySelector('#control-note');
+const scoreGuide = document.querySelector('#score-guide');
 const missionPicker = document.createElement('select');
 missionPicker.setAttribute('aria-label', 'Миссия');
 for (const mission of missions) {
@@ -49,8 +53,10 @@ function updateHud() {
   score.textContent = state.score;
   lives.textContent = state.lives;
   const legacy = state.settings.mode === 'waves';
-  fieldLabel.textContent = legacy ? 'ВОЛНА' : 'АСТЕРОИДЫ';
-  fieldValue.textContent = legacy ? state.wave : state.asteroids.filter(rock => rock.x + RADII[rock.size] >= 0 && rock.x - RADII[rock.size] <= WORLD.width).length;
+  const droneEscape = state.settings.mode === 'drone-escape';
+  fieldLabel.textContent = legacy ? 'ВОЛНА' : droneEscape ? 'БЕСПИЛОТНИКИ' : 'АСТЕРОИДЫ';
+  fieldValue.textContent = legacy ? state.wave : droneEscape ? state.drones.length
+    : state.asteroids.filter(rock => rock.x + RADII[rock.size] >= 0 && rock.x - RADII[rock.size] <= WORLD.width).length;
   missionProgress.hidden = legacy;
   if (state.settings.mode === 'clear') {
     const total = state.settings.asteroidCount * 7;
@@ -63,6 +69,11 @@ function updateHud() {
     objectiveProgress.textContent = 'Осталось ' + Math.ceil(Math.max(0, state.settings.durationSeconds - state.elapsed)) + ' с';
     missionProgress.max = state.settings.durationSeconds;
     missionProgress.value = state.elapsed;
+  } else if (droneEscape) {
+    objective.textContent = 'Уровень ' + state.level + ': продержитесь ' + state.settings.levelDurationSeconds + ' секунд';
+    objectiveProgress.textContent = 'Осталось ' + Math.ceil(Math.max(0, state.settings.levelDurationSeconds - state.levelElapsed)) + ' с';
+    missionProgress.max = state.settings.levelDurationSeconds;
+    missionProgress.value = state.levelElapsed;
   } else {
     objective.textContent = 'Продержитесь как можно дольше';
     objectiveProgress.textContent = 'Волна ' + state.wave;
@@ -78,7 +89,9 @@ function finish() {
   overlayTitle.textContent = status.textContent;
   overlayTag.textContent = won ? 'ЦЕЛЬ ДОСТИГНУТА' : 'РАЗБОР ВЫЛЕТА';
   const result = state.settings.mode === 'survival' ? 'Вы выдержали весь поток.' : 'Сектор очищен.';
-  overlayCopy.textContent = (won ? result + ' ' : '') + 'Ваш результат: ' + state.score + ' очков.';
+  overlayCopy.textContent = state.settings.mode === 'drone-escape'
+    ? 'Астероид разрушен. Достигнут уровень ' + state.level + '.'
+    : (won ? result + ' ' : '') + 'Ваш результат: ' + state.score + ' очков.';
   startButton.textContent = won ? 'Повторить миссию' : 'Начать заново';
   pauseButton.disabled = true;
   overlay.hidden = false;
@@ -118,7 +131,20 @@ function togglePause() {
 function updateMissionBriefing() {
   document.querySelector('#mission-title').textContent = settings.title;
   document.querySelector('#mission-description').textContent = settings.description;
-  document.querySelector('#mission-difficulty').textContent = settings.mode === 'clear' ? 'Одна волна' : settings.mode === 'survival' ? 'Поток · ' + settings.durationSeconds + ' с' : 'Бесконечные волны';
+  document.querySelector('#mission-difficulty').textContent = settings.mode === 'clear' ? 'Одна волна'
+    : settings.mode === 'survival' ? 'Поток · ' + settings.durationSeconds + ' с'
+      : settings.mode === 'drone-escape' ? 'Рой · ' + settings.levelDurationSeconds + ' с на уровень'
+        : 'Бесконечные волны';
+  const asteroidPlayer = settings.mode === 'drone-escape';
+  actionLabel.textContent = asteroidPlayer ? 'Оружие' : 'Огонь';
+  actionKey.textContent = asteroidPlayer ? 'Нет' : 'Пробел';
+  controlNote.innerHTML = asteroidPlayer
+    ? 'Также: A/D — поворот, W — тяга.<br>Вы управляете астероидом и можете только уклоняться.'
+    : 'Также: A/D — поворот, W — тяга.<br>Корабль проходит сквозь края поля.';
+  scoreGuide.hidden = asteroidPlayer;
+  canvas.setAttribute('aria-label', asteroidPlayer
+    ? 'Игровое поле. Вы управляете астероидом: стрелки или WASD — движение.'
+    : 'Игровое поле. Стрелки или WASD — движение, пробел — огонь.');
   overlayCopy.textContent = settings.description;
   document.querySelector('#flight-label').textContent = 'МИССИЯ / ' + settings.title.toUpperCase();
 }

@@ -14,7 +14,8 @@ test('all checked-in missions satisfy the contract and start a game', () => {
   assert.ok(missions.length >= 2);
   for (const mission of missions) {
     const game = createGame(mission);
-    assert.equal(game.asteroids.length, mission.asteroidCount);
+    assert.equal(game.asteroids.length, mission.mode === 'drone-escape' ? 0 : mission.asteroidCount);
+    if (mission.mode === 'drone-escape') assert.equal(game.drones.length, 1);
     assert.equal(game.settings.seed, mission.seed);
     assert.equal(game.settings.asteroidSpeed, mission.asteroidSpeed);
   }
@@ -55,7 +56,10 @@ test('mission objectives reach the simulation while old JSON keeps waves', () =>
   timed.ship.invulnerable = 10;
   assert.equal(stepGame(timed, {}, 0.02).status, 'won');
   assert.equal(timed.settings.spawnIntervalSeconds, 0.5);
-  for (const changed of [{mode:'unknown'}, {mode:null}, {durationSeconds:0}, {spawnIntervalSeconds:0}]) {
+  const escape = createGame(validateMission({ ...fixture, mode: 'drone-escape', levelDurationSeconds: 20 }));
+  assert.equal(escape.drones.length, 1);
+  assert.equal(escape.asteroids.length, 0);
+  for (const changed of [{mode:'unknown'}, {mode:null}, {durationSeconds:0}, {spawnIntervalSeconds:0}, {levelDurationSeconds:0}]) {
     assert.throws(() => validateMission({ ...fixture, ...changed }));
   }
 });

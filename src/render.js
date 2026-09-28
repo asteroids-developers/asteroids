@@ -19,6 +19,21 @@ export function createRenderer(canvas) {
     }
   }
 
+  function drawAsteroid(rock, stroke = '#8ba3b8', fill = '#14223699') {
+    ctx.strokeStyle = stroke;
+    ctx.fillStyle = fill;
+    ctx.beginPath();
+    for (let vertex = 0; vertex <= 10; vertex++) {
+      const n = vertex % 10;
+      const angle = n / 10 * Math.PI * 2;
+      const radius = RADII[rock.size] * (0.84 + Math.sin(rock.id * 7 + n * 13) * 0.15);
+      const x = Math.cos(angle) * radius;
+      const y = Math.sin(angle) * radius;
+      if (vertex === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+  }
+
   return function render(state, thrust = false) {
     ctx.fillStyle = '#080e18';
     ctx.fillRect(0, 0, WORLD.width, WORLD.height);
@@ -36,27 +51,38 @@ export function createRenderer(canvas) {
     }
     ctx.lineWidth = 1.5;
     for (const rock of state.asteroids) {
-      wrapped(rock, () => {
-        ctx.strokeStyle = '#8ba3b8';
-        ctx.fillStyle = '#14223699';
-        ctx.beginPath();
-        for (let vertex = 0; vertex <= 10; vertex++) {
-          const n = vertex % 10;
-          const angle = n / 10 * Math.PI * 2;
-          const radius = RADII[rock.size] * (0.84 + Math.sin(rock.id * 7 + n * 13) * 0.15);
-          const x = Math.cos(angle) * radius;
-          const y = Math.sin(angle) * radius;
-          if (vertex === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-        }
-        ctx.closePath(); ctx.fill(); ctx.stroke();
-      }, state.settings.mode !== 'survival');
+      wrapped(rock, () => drawAsteroid(rock), state.settings.mode !== 'survival');
     }
     ctx.fillStyle = '#ffd29a';
     for (const shot of state.bullets) {
       wrapped(shot, () => { ctx.beginPath(); ctx.arc(0, 0, 2.5, 0, Math.PI * 2); ctx.fill(); }, state.settings.mode !== 'survival');
     }
+    ctx.fillStyle = '#ff6f72';
+    for (const shot of state.enemyBullets) {
+      wrapped(shot, () => { ctx.beginPath(); ctx.arc(0, 0, 3, 0, Math.PI * 2); ctx.fill(); });
+    }
+    for (const drone of state.drones) {
+      wrapped(drone, () => {
+        ctx.strokeStyle = '#ff8b8e'; ctx.fillStyle = '#481c2a'; ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(16, 0); ctx.lineTo(-9, -10); ctx.lineTo(-4, 0); ctx.lineTo(-9, 10);
+        ctx.closePath(); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = '#ff6f72';
+        ctx.beginPath(); ctx.arc(2, 0, 2.5, 0, Math.PI * 2); ctx.fill();
+      });
+    }
     if (state.status === 'gameover') return;
     if (state.ship.invulnerable > 0 && Math.floor(state.elapsed * 10) % 2 === 0) return;
+    if (state.settings.mode === 'drone-escape') {
+      wrapped(state.ship, () => {
+        if (thrust) {
+          ctx.strokeStyle = '#ffbc7c'; ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.arc(0, 0, RADII[state.lives] + 6, Math.PI * 0.7, Math.PI * 1.3); ctx.stroke();
+        }
+        drawAsteroid({ ...state.ship, id: 0, size: state.lives }, '#e0b685', '#3b2b2099');
+      });
+      return;
+    }
     wrapped(state.ship, () => {
       if (thrust) {
         ctx.strokeStyle = '#ffbc7c';

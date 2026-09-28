@@ -1,0 +1,10 @@
+{
+  "id": "false-target",
+  "title": "Ложная цель",
+  "description": "Вы — астероид без оружия. Продержитесь 20 секунд против одного беспилотника: на каждом новом уровне к атаке присоединяется ещё один.",
+  "seed": 314159,
+  "asteroidCount": 1,
+  "asteroidSpeed": 1,
+  "mode": "drone-escape",
+  "levelDurationSeconds": 20
+}
