@@ -77,3 +77,22 @@ test('last-life collision at the deadline displays defeat rather than victory', 
   await expect(page.getByRole('heading', { name: 'Полёт завершён' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Миссия выполнена' })).toBeHidden();
 });
+
+test('combat mission shows enemies and wins after the last hit', async ({ page }) => {
+  await page.goto('/');
+  await page.getByLabel('Миссия', { exact: true }).selectOption('enemy-squadron');
+  await expect(page.getByTestId('objective')).toHaveText('Уничтожьте вражеские корабли');
+  await expect(page.getByTestId('objective-progress')).toHaveText('Уничтожено: 0 / 3');
+  await page.getByRole('button', { name: 'Начать полёт', exact: true }).click();
+  await page.evaluate(() => {
+    const api = window.__ASTEROIDS_TEST__;
+    const state = api.getState();
+    state.enemiesDestroyed = 2;
+    state.enemies = [{ id: 100, x: 100, y: 100, angle: 0, cooldown: 10 }];
+    state.bullets = [{ id: 101, x: 100, y: 100, vx: 0, vy: 0, ttl: 1 }];
+    api.setState(state);
+    api.advance();
+  });
+  await expect(page.getByRole('heading', { name: 'Миссия выполнена' })).toBeVisible();
+  await expect(page.getByTestId('objective-progress')).toHaveText('Уничтожено: 3 / 3');
+});
