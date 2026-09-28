@@ -37,6 +37,13 @@
             </div>
           </section>
         </div>
+        <div id="rally-hud" class="rally-hud" hidden>
+          <strong id="rally-stage">01 / ПРИГЛАШЕНИЯ</strong>
+          <span>СЕРДЦА <b id="rally-hearts">0 / 3</b></span>
+          <span>ЩИТ <b id="rally-shield">нет</b></span>
+          <span>РЫВОК <b id="rally-dash">SHIFT · ГОТОВ</b></span>
+          <span>ЗАЛП <b id="rally-power">обычный</b></span>
+        </div>
         <div class="flight-footer"><span id="flight-label">СЕКТОР 01 / УЧЕБНЫЙ ВЫЛЕТ</span><button id="pause" class="button quiet" disabled>Пауза</button></div>
       </section>
       <aside class="sidebar" aria-label="Брифинг и управление">
@@ -53,6 +60,7 @@
           <div class="control-row"><span>Тяга</span><kbd>↑</kbd></div>
           <div class="control-row"><span>Огонь</span><kbd class="wide">Пробел</kbd></div>
           <div class="control-row"><span>Пауза</span><kbd>P</kbd></div>
+          <div id="dash-control" class="control-row" hidden><span>Защитный рывок</span><kbd class="wide">Shift</kbd></div>
           <p class="control-note">Также: A/D — поворот, W — тяга.<br>Корабль проходит сквозь края поля.</p>
         </section>
         <section class="score-guide">

@@ -1,16 +1,16 @@
 import { test, expect } from '@playwright/test';
 
-test('Barbie mission freezes its timer, wins at 45 seconds and resets on replay', async ({ page }) => {
+test('Barbie rally pauses, advances through three stages and resets on replay', async ({ page }) => {
   await page.clock.install({ time: new Date('2026-01-01T00:00:00Z') });
   await page.clock.pauseAt(new Date('2026-01-01T00:00:01Z'));
   await page.goto('/?mission=barbie-dream-orbit');
   await expect(page.getByRole('heading', { name: 'Барби: курс на Дримхаус', exact: true })).toBeVisible();
-  await expect(page.getByTestId('objective')).toHaveText('Продержитесь 45 секунд');
+  await expect(page.getByTestId('objective')).toHaveText('Соберите 3 сердца-приглашения');
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'pink');
   await page.getByRole('button', { name: 'Начать полёт', exact: true }).click();
   const initial = await page.evaluate(() => window.__ASTEROIDS_TEST__.getState());
-  expect(initial.settings).toEqual({ seed: 1959, asteroidCount: 6, asteroidSpeed: 1.1,
-    mode: 'survival', durationSeconds: 45, spawnIntervalSeconds: 1.5 });
+  expect(initial.settings).toEqual({ seed: 1959, asteroidCount: 4, asteroidSpeed: 0.9,
+    mode: 'dream-rally', durationSeconds: 90, spawnIntervalSeconds: 2 });
   await page.evaluate(() => {
     const api = window.__ASTEROIDS_TEST__;
     const state = api.getState();
@@ -28,16 +28,31 @@ test('Barbie mission freezes its timer, wins at 45 seconds and resets on replay'
   await page.evaluate(() => {
     const api = window.__ASTEROIDS_TEST__;
     const state = api.getState();
-    state.elapsed = 44.99;
+    state.rally.hearts = 3;
     api.setState(state);
     api.advance();
   });
-  await expect(page.getByRole('heading', { name: 'Миссия выполнена' })).toBeVisible();
-  await expect(page.getByTestId('objective-progress')).toHaveText('Осталось 0 с');
+  await expect(page.locator('#rally-stage')).toHaveText('02 / ДИСКО-ШТОРМ');
+  await page.evaluate(() => {
+    const api = window.__ASTEROIDS_TEST__;
+    const state = api.getState();
+    state.rally.phaseElapsed = 19.99;
+    api.setState(state);
+    api.advance();
+  });
+  await expect(page.locator('#rally-stage')).toHaveText('03 / ДРИМХАУС');
+  await page.evaluate(() => {
+    const api = window.__ASTEROIDS_TEST__;
+    const state = api.getState();
+    state.ship.x = 850; state.ship.y = 320;
+    api.setState(state);
+    api.advance();
+  });
+  await expect(page.getByRole('heading', { name: 'Hi, Barbie! Ты дома.' })).toBeVisible();
   await page.getByRole('button', { name: 'Повторить миссию', exact: true }).click();
   const restarted = await page.evaluate(() => window.__ASTEROIDS_TEST__.getState());
   expect(restarted).toEqual(initial);
-  await expect(page.getByTestId('objective-progress')).toHaveText('Осталось 45 с');
+  await expect(page.getByTestId('objective-progress')).toHaveText('До закрытия: 90 с');
   await expect(page.getByTestId('lives')).toHaveText('3');
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'pink');
 });
@@ -60,7 +75,7 @@ test('Barbie mission can lose, and switching missions restores the classic appea
     api.setState(state);
     api.advance();
   });
-  await expect(page.getByRole('heading', { name: 'Полёт завершён' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Вечеринка подождёт' })).toBeVisible();
   await expect(page.getByTestId('lives')).toHaveText('0');
   await expect(picker).toBeEnabled();
   await picker.selectOption('first-flight');
@@ -70,6 +85,6 @@ test('Barbie mission can lose, and switching missions restores the classic appea
     [...canvas.getContext('2d').getImageData(20, 20, 1, 1).data])).toEqual([8, 14, 24, 255]);
   await expect(page.getByTestId('objective')).toHaveText('Очистите одну волну');
   await picker.selectOption('barbie-dream-orbit');
-  await expect(page.getByTestId('objective-progress')).toHaveText('Осталось 45 с');
+  await expect(page.getByTestId('objective-progress')).toHaveText('До закрытия: 90 с');
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'pink');
 });

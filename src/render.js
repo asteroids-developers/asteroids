@@ -1,4 +1,5 @@
 import { WORLD, RADII } from './game/core.js';
+import { RALLY } from './game/rally.js';
 
 const PALETTES = {
   classic: {
@@ -54,6 +55,40 @@ export function createRenderer(canvas) {
         ctx.fillRect(x, y - 3, 1.5, 7.5);
       }
     }
+    if (state.rally) {
+      for (const hazard of state.rally.hazards) {
+        const active = hazard.age >= 0;
+        ctx.fillStyle = active ? '#ff429aaa' : '#ff80cd16';
+        ctx.fillRect(0, hazard.y - 18, WORLD.width, 36);
+        ctx.strokeStyle = active ? '#fff0fa' : '#ff8ecd';
+        ctx.lineWidth = active ? 3 : 1;
+        ctx.setLineDash(active ? [] : [12, 10]);
+        ctx.beginPath(); ctx.moveTo(0, hazard.y); ctx.lineTo(WORLD.width, hazard.y); ctx.stroke();
+        ctx.setLineDash([]);
+        if (!active) { ctx.fillStyle = '#ffe1f3'; ctx.font = '12px system-ui'; ctx.fillText('ОСТОРОЖНО: ЛАЗЕР', 18, hazard.y - 26); }
+      }
+      if (state.rally.phase === 'escape') {
+        const gate = RALLY.gate;
+        ctx.save(); ctx.translate(gate.x, gate.y);
+        ctx.strokeStyle = '#fff0ad'; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.arc(0, 0, gate.radius + Math.sin(state.elapsed * 5) * 3, 0, Math.PI * 2); ctx.stroke();
+        ctx.fillStyle = '#ff8ecd44'; ctx.fill();
+        ctx.font = 'bold 12px system-ui'; ctx.textAlign = 'center'; ctx.fillStyle = '#fff0ad';
+        ctx.fillText('ДРИМХАУС', 0, -65);
+        ctx.beginPath(); ctx.moveTo(-22, 0); ctx.lineTo(0, -21); ctx.lineTo(22, 0); ctx.lineTo(17, 0); ctx.lineTo(17, 22); ctx.lineTo(-17, 22); ctx.lineTo(-17, 0); ctx.closePath(); ctx.stroke();
+        ctx.restore();
+      }
+      for (const heart of state.rally.pickups) {
+        ctx.save(); ctx.translate(heart.x, heart.y);
+        const pulse = 1 + Math.sin(state.elapsed * 5 + heart.id) * 0.1;
+        ctx.scale(pulse, pulse);
+        ctx.fillStyle = '#ff4ca7'; ctx.strokeStyle = '#ffe1f3'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(0, 12);
+        ctx.bezierCurveTo(-24, -3, -12, -21, 0, -10);
+        ctx.bezierCurveTo(12, -21, 24, -3, 0, 12); ctx.closePath(); ctx.fill(); ctx.stroke();
+        ctx.restore();
+      }
+    }
     ctx.lineWidth = 1.5;
     for (const rock of state.asteroids) {
       wrapped(rock, () => {
@@ -69,15 +104,24 @@ export function createRenderer(canvas) {
           if (vertex === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
         }
         ctx.closePath(); ctx.fill(); ctx.stroke();
-      }, state.settings.mode !== 'survival');
+      }, !['survival', 'dream-rally'].includes(state.settings.mode));
     }
     ctx.fillStyle = palette.shot;
     for (const shot of state.bullets) {
-      wrapped(shot, () => { ctx.beginPath(); ctx.arc(0, 0, 2.5, 0, Math.PI * 2); ctx.fill(); }, state.settings.mode !== 'survival');
+      wrapped(shot, () => { ctx.beginPath(); ctx.arc(0, 0, 2.5, 0, Math.PI * 2); ctx.fill(); }, !['survival', 'dream-rally'].includes(state.settings.mode));
     }
     if (state.status === 'gameover') return;
     if (state.ship.invulnerable > 0 && Math.floor(state.elapsed * 10) % 2 === 0) return;
     wrapped(state.ship, () => {
+      if (state.rally?.shields > 0 || state.rally?.dashRemaining > 0) {
+        ctx.strokeStyle = state.rally.dashRemaining > 0 ? '#fff0ad' : '#ff8ecd';
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(0, 0, 25 + (state.rally.shields > 1 ? 4 : 0), 0, Math.PI * 2); ctx.stroke();
+      }
+      if (state.rally?.dashRemaining > 0) {
+        ctx.strokeStyle = '#fff0ad88'; ctx.lineWidth = 5;
+        ctx.beginPath(); ctx.moveTo(-10, -7); ctx.lineTo(-80, -7); ctx.moveTo(-10, 7); ctx.lineTo(-80, 7); ctx.stroke();
+      }
       if (thrust) {
         ctx.strokeStyle = palette.flame;
         ctx.beginPath(); ctx.moveTo(-10, -5); ctx.lineTo(-23 - Math.sin(state.elapsed * 45) * 5, 0); ctx.lineTo(-10, 5); ctx.stroke();
@@ -85,6 +129,6 @@ export function createRenderer(canvas) {
       ctx.strokeStyle = palette.ship; ctx.fillStyle = palette.shipFill; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.moveTo(18, 0); ctx.lineTo(-11, -11); ctx.lineTo(-6, 0); ctx.lineTo(-11, 11); ctx.closePath();
       ctx.fill(); ctx.stroke();
-    }, state.settings.mode !== 'survival');
+    }, !['survival', 'dream-rally'].includes(state.settings.mode));
   };
 }

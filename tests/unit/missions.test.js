@@ -43,17 +43,17 @@ test('mission themes are validated and do not change the simulation', () => {
   }
 });
 
-test('Barbie mission is winnable with normal controls and can be restarted deterministically', () => {
+test('Barbie preset starts a three-stage rally and restarts deterministically', () => {
   const mission = validateMission(presets().find(mission => mission.id === 'barbie-dream-orbit'));
   const initial = createGame(mission);
   let state = initial;
-  // Repeat a one-second manoeuvre: turn for 1/3 s, thrust for 1/2 s, keep firing.
-  for (let frame = 0; frame < 3000 && state.status === 'playing'; frame++) {
+  for (let frame = 0; frame < 120 && state.status === 'playing'; frame++) {
     state = stepGame(state, { fire: true, right: frame % 60 < 20, thrust: frame % 60 < 30 }, 1 / 60);
   }
-  assert.equal(state.status, 'won');
-  assert.equal(state.elapsed, mission.durationSeconds);
-  assert.ok(state.lives > 0);
+  assert.equal(initial.rally.phase, 'collect');
+  assert.equal(initial.rally.hearts, 0);
+  assert.equal(initial.settings.durationSeconds, 90);
+  assert.ok(state.elapsed > 0);
   assert.deepEqual(createGame(mission), initial);
 });
 

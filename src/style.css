@@ -109,3 +109,7 @@ progress::-moz-progress-bar { background: var(--mint); }
 [data-theme="pink"] .page-footer, [data-theme="pink"] .page-footer a { color: #d8a9c9; }
 [data-theme="pink"] .beacon, [data-theme="pink"] .status-dot { box-shadow: 0 0 12px #ff9fd750; }
 [data-theme="pink"] progress, [data-theme="pink"] progress::-webkit-progress-bar { background: #693656; }
+.rally-hud { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; padding: 14px 20px; border-top: 1px solid var(--line); color: var(--muted); font: 10px ui-monospace, monospace; }
+.rally-hud > strong { color: var(--mint); letter-spacing: .08em; }
+.rally-hud b { display: block; margin-top: 5px; color: #fff0fa; font-size: 12px; }
+@media (max-width: 560px) { .rally-hud { padding: 12px; gap: 12px; } .rally-hud > strong { width: 100%; } }
