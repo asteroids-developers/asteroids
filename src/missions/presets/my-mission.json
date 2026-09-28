@@ -1,0 +1,11 @@
+{
+  "id": "asteroid-storm",
+  "title": "Астероидный шторм",
+  "description": "Выживите 60 секунд в космическом шторме.",
+  "seed": 42,
+  "asteroidCount": 15,
+  "asteroidSpeed": 2,
+  "mode": "survival",
+  "durationSeconds": 60,
+  "spawnIntervalSeconds": 1
+} 
