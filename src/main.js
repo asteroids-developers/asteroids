@@ -1,5 +1,5 @@
 import './style.css';
-import { createGame, stepGame, WORLD, RADII } from './game/core.js';
+import { createGame, GOBLIN_MAX_HP, stepGame, WORLD, RADII } from './game/core.js';
 import { createRenderer } from './render.js';
 import { missions } from './missions/catalog.js';
 
@@ -49,7 +49,7 @@ function updateHud() {
   score.textContent = state.score;
   lives.textContent = state.lives;
   const legacy = state.settings.mode === 'waves';
-  fieldLabel.textContent = legacy ? 'ВОЛНА' : 'АСТЕРОИДЫ';
+  fieldLabel.textContent = legacy ? 'ВОЛНА' : state.settings.mode === 'goblin' ? 'УГРОЗЫ' : 'АСТЕРОИДЫ';
   fieldValue.textContent = legacy ? state.wave : state.asteroids.filter(rock => rock.x + RADII[rock.size] >= 0 && rock.x - RADII[rock.size] <= WORLD.width).length;
   missionProgress.hidden = legacy;
   if (state.settings.mode === 'clear') {
@@ -63,6 +63,12 @@ function updateHud() {
     objectiveProgress.textContent = 'Осталось ' + Math.ceil(Math.max(0, state.settings.durationSeconds - state.elapsed)) + ' с';
     missionProgress.max = state.settings.durationSeconds;
     missionProgress.value = state.elapsed;
+  } else if (state.settings.mode === 'goblin') {
+    const hp = state.goblin?.hp ?? 0;
+    objective.textContent = 'Уничтожьте гоблина';
+    objectiveProgress.textContent = 'HP гоблина: ' + hp + ' / ' + GOBLIN_MAX_HP;
+    missionProgress.max = GOBLIN_MAX_HP;
+    missionProgress.value = hp;
   } else {
     objective.textContent = 'Продержитесь как можно дольше';
     objectiveProgress.textContent = 'Волна ' + state.wave;
@@ -77,7 +83,11 @@ function finish() {
   status.textContent = won ? 'Миссия выполнена' : 'Полёт завершён';
   overlayTitle.textContent = status.textContent;
   overlayTag.textContent = won ? 'ЦЕЛЬ ДОСТИГНУТА' : 'РАЗБОР ВЫЛЕТА';
-  const result = state.settings.mode === 'survival' ? 'Вы выдержали весь поток.' : 'Сектор очищен.';
+  const result = state.settings.mode === 'survival'
+    ? 'Вы выдержали весь поток.'
+    : state.settings.mode === 'goblin'
+      ? 'Гоблин повержен.'
+      : 'Сектор очищен.';
   overlayCopy.textContent = (won ? result + ' ' : '') + 'Ваш результат: ' + state.score + ' очков.';
   startButton.textContent = won ? 'Повторить миссию' : 'Начать заново';
   pauseButton.disabled = true;
@@ -118,7 +128,13 @@ function togglePause() {
 function updateMissionBriefing() {
   document.querySelector('#mission-title').textContent = settings.title;
   document.querySelector('#mission-description').textContent = settings.description;
-  document.querySelector('#mission-difficulty').textContent = settings.mode === 'clear' ? 'Одна волна' : settings.mode === 'survival' ? 'Поток · ' + settings.durationSeconds + ' с' : 'Бесконечные волны';
+  document.querySelector('#mission-difficulty').textContent = settings.mode === 'clear'
+    ? 'Одна волна'
+    : settings.mode === 'survival'
+      ? 'Поток · ' + settings.durationSeconds + ' с'
+      : settings.mode === 'goblin'
+        ? 'Гоблин · ' + GOBLIN_MAX_HP + ' HP'
+        : 'Бесконечные волны';
   overlayCopy.textContent = settings.description;
   document.querySelector('#flight-label').textContent = 'МИССИЯ / ' + settings.title.toUpperCase();
 }

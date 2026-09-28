@@ -2,6 +2,7 @@ import { WORLD, RADII, toroidalDistance } from './world.js';
 
 const SAFE_DISTANCE = 180;
 const GAP = 12;
+const GOBLIN_MAX_HP = 50;
 
 function random(state) {
   state.rng = (Math.imul(state.rng, 1664525) + 1013904223) >>> 0;
@@ -19,6 +20,16 @@ export function makeAsteroid(state, x, y, size) {
     vx: Math.cos(direction) * speed, vy: Math.sin(direction) * speed,
     angle: random(state) * Math.PI * 2, spin: (random(state) - 0.5) * 1.2,
   };
+}
+
+function aimAtShip(state, origin) {
+  let dx = state.ship.x - origin.x;
+  let dy = state.ship.y - origin.y;
+  if (dx > WORLD.width / 2) dx -= WORLD.width;
+  if (dx < -WORLD.width / 2) dx += WORLD.width;
+  if (dy > WORLD.height / 2) dy -= WORLD.height;
+  if (dy < -WORLD.height / 2) dy += WORLD.height;
+  return Math.atan2(dy, dx);
 }
 
 function separated(position, positions, ship) {
@@ -59,6 +70,36 @@ export function spawnWave(state) {
   const count = Math.min(30, state.settings.asteroidCount + state.wave - 1);
   const positions = positionsForWave(state, count);
   state.asteroids.push(...positions.map(({ x, y }) => makeAsteroid(state, x, y, 3)));
+}
+
+export function makeGoblin(state) {
+  const [position] = positionsForWave(state, 1);
+  const direction = random(state) * Math.PI * 2;
+  const speed = (34 + random(state) * 18) * state.settings.asteroidSpeed;
+  return {
+    id: state.nextId++, ...position,
+    hp: GOBLIN_MAX_HP,
+    vx: Math.cos(direction) * speed, vy: Math.sin(direction) * speed,
+    angle: random(state) * Math.PI * 2, spin: (random(state) - 0.5) * 0.8,
+  };
+}
+
+export function spawnGoblinRock(state) {
+  if (!state.goblin || state.asteroids.length >= state.settings.asteroidCount) return false;
+  const aim = aimAtShip(state, state.goblin) + (random(state) - 0.5) * 0.22;
+  const speed = (75 + random(state) * 22.5) * state.settings.asteroidSpeed;
+  const distance = RADII[1] + 36;
+  state.asteroids.push({
+    id: state.nextId++,
+    x: (state.goblin.x + Math.cos(aim) * distance + WORLD.width) % WORLD.width,
+    y: (state.goblin.y + Math.sin(aim) * distance + WORLD.height) % WORLD.height,
+    vx: Math.cos(aim) * speed + state.goblin.vx * 0.25,
+    vy: Math.sin(aim) * speed + state.goblin.vy * 0.25,
+    size: 1,
+    angle: random(state) * Math.PI * 2,
+    spin: (random(state) - 0.5) * 2,
+  });
+  return true;
 }
 
 export function spawnIncoming(state) {

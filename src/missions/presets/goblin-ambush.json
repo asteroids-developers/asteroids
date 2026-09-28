@@ -1,0 +1,10 @@
+{
+  "id": "goblin-ambush",
+  "title": "Гоблинский залп",
+  "description": "Разбейте орбитального гоблина за 50 попаданий: он летит по полю как астероид и выпускает маленькие камни прямо в вашу сторону.",
+  "seed": 731,
+  "asteroidCount": 9,
+  "asteroidSpeed": 1.1,
+  "mode": "goblin",
+  "spawnIntervalSeconds": 1.9
+}

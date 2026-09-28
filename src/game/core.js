@@ -1,15 +1,17 @@
 // Simulation uses seconds and logical pixels; browser rendering is a separate adapter.
 import { WORLD, RADII, wrap, toroidalDistance } from './world.js';
-import { makeAsteroid, spawnWave, spawnIncoming } from './spawn.js';
+import { makeAsteroid, makeGoblin, spawnGoblinRock, spawnIncoming, spawnWave } from './spawn.js';
 export { WORLD, RADII, toroidalDistance } from './world.js';
 const POINTS = { 1: 100, 2: 50, 3: 20 };
 const SHIP_RADIUS = 12;
+export const GOBLIN_RADIUS = 30;
+export const GOBLIN_MAX_HP = 50;
 
 export function validateSettings({
   seed, asteroidCount, asteroidSpeed, mode = 'waves',
   durationSeconds = 60, spawnIntervalSeconds = 1.25,
 }) {
-  if (!['waves', 'clear', 'survival'].includes(mode)) throw new TypeError('unknown mission mode');
+  if (!['waves', 'clear', 'survival', 'goblin'].includes(mode)) throw new TypeError('unknown mission mode');
   if (!Number.isFinite(durationSeconds) || durationSeconds < 1 || durationSeconds > 600) {
     throw new RangeError('durationSeconds must be between 1 and 600');
   }
@@ -35,9 +37,10 @@ export function createGame({
     status: 'playing', score: 0, lives: 3, wave: 1, elapsed: 0, destroyed: 0,
     spawnCountdown: spawnIntervalSeconds,
     settings, rng: seed >>> 0, nextId: 1, ship: newShip(),
-    asteroids: [], bullets: [],
+    goblin: null, asteroids: [], bullets: [],
   };
-  spawnWave(state);
+  if (mode === 'goblin') state.goblin = makeGoblin(state);
+  else spawnWave(state);
   return state;
 }
 
@@ -105,18 +108,36 @@ function resolveHits(state) {
       break;
     }
   }
+  if (state.goblin) {
+    for (const shot of state.bullets) {
+      if (spent.has(shot.id)) continue;
+      if (toroidalDistance(shot, state.goblin) > GOBLIN_RADIUS + 2) continue;
+      spent.add(shot.id);
+      state.goblin.hp ??= GOBLIN_MAX_HP;
+      state.goblin.hp = Math.max(0, state.goblin.hp - 1);
+    }
+  }
   state.bullets = state.bullets.filter(shot => !spent.has(shot.id));
   state.asteroids = state.asteroids.filter(rock => !destroyed.has(rock.id)).concat(fragments);
-  if (state.ship.invulnerable > 0) return;
+  let shipWasHit = false;
+  if (state.ship.invulnerable > 0) {
+    if (state.goblin?.hp === 0) state.status = 'won';
+    return;
+  }
   const hit = state.asteroids.some(rock =>
     distanceToRock(state, state.ship, rock) < SHIP_RADIUS + RADII[rock.size]);
-  if (!hit) return;
-  state.lives--;
-  if (state.lives === 0) {
-    state.status = 'gameover';
-  } else {
-    state.ship = { ...newShip(), invulnerable: 2 };
+  const goblinHit = state.goblin
+    && toroidalDistance(state.ship, state.goblin) < SHIP_RADIUS + GOBLIN_RADIUS;
+  if (hit || goblinHit) {
+    shipWasHit = true;
+    state.lives--;
+    if (state.lives === 0) {
+      state.status = 'gameover';
+    } else {
+      state.ship = { ...newShip(), invulnerable: 2 };
+    }
   }
+  if (!shipWasHit && state.goblin?.hp === 0) state.status = 'won';
 }
 
 /** Return a new state. dt is in seconds; callers should use a fixed 1/60 step. */
@@ -126,9 +147,14 @@ export function stepGame(previous, input = {}, dt = 1 / 60) {
   const state = structuredClone(previous);
   dt = Math.min(dt, 0.05);
   const survival = state.settings.mode === 'survival';
-  if (survival) dt = Math.min(dt, Math.max(0, state.settings.durationSeconds - state.elapsed));
-  state.elapsed = survival ? Math.min(state.settings.durationSeconds, state.elapsed + dt) : state.elapsed + dt;
+  const timed = survival;
+  if (timed) dt = Math.min(dt, Math.max(0, state.settings.durationSeconds - state.elapsed));
+  state.elapsed = timed ? Math.min(state.settings.durationSeconds, state.elapsed + dt) : state.elapsed + dt;
   steer(state, input, dt);
+  if (state.goblin) {
+    move(state.goblin, dt);
+    state.goblin.angle += state.goblin.spin * dt;
+  }
   for (const rock of state.asteroids) {
     if (survival) {
       rock.x += rock.vx * dt;
@@ -161,6 +187,12 @@ export function stepGame(previous, input = {}, dt = 1 / 60) {
         spawnIncoming(state);
         state.spawnCountdown += state.settings.spawnIntervalSeconds;
       }
+    }
+  } else if (state.settings.mode === 'goblin') {
+    state.spawnCountdown -= dt;
+    if (state.spawnCountdown <= 0) {
+      spawnGoblinRock(state);
+      state.spawnCountdown += state.settings.spawnIntervalSeconds;
     }
   } else if (state.asteroids.length === 0) {
     if (state.settings.mode === 'clear') state.status = 'won';

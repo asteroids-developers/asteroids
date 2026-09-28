@@ -6,6 +6,7 @@ const rock = (id, x, y, size = 1, vx = 0) => ({ id, x, y, vx, vy: 0, size, angle
 const bullet = (id, x, y) => ({ id, x, y, vx: 0, vy: 0, ttl: 1 });
 const clear = () => createGame({ seed: 42, mode: 'clear', asteroidCount: 3, asteroidSpeed: 0.6 });
 const survival = () => createGame({ seed: 2026, mode: 'survival', durationSeconds: 60, spawnIntervalSeconds: 1.25 });
+const goblin = () => createGame({ seed: 731, mode: 'goblin', asteroidCount: 3, asteroidSpeed: 1.1, spawnIntervalSeconds: 1.9 });
 
 test('legacy options retain endless waves', () => {
   const game = createGame();
@@ -55,6 +56,72 @@ test('initial placement stays separated and safe across mission modes and seeds'
       }
     }
   }
+});
+
+test('goblin mode starts with a moving goblin instead of a wave', () => {
+  const game = goblin();
+  assert.ok(game.goblin);
+  assert.equal(game.goblin.hp, 50);
+  assert.equal(game.asteroids.length, 0);
+  assert.ok(toroidalDistance(game.ship, game.goblin) >= 180);
+  const next = stepGame(game, {}, 0.5);
+  assert.notEqual(next.goblin.x, game.goblin.x);
+  assert.notEqual(next.goblin.y, game.goblin.y);
+});
+
+test('goblin launches small asteroids from itself toward the ship', () => {
+  const game = goblin();
+  game.ship.x = 360;
+  game.ship.y = 300;
+  game.goblin = { id: 100, x: 200, y: 300, vx: 0, vy: 0, angle: 0, spin: 0 };
+  game.spawnCountdown = 0.001;
+  const next = stepGame(game, {}, 0.01);
+  assert.equal(next.asteroids.length, 1);
+  assert.equal(next.asteroids[0].size, 1);
+  assert.ok(next.asteroids[0].vx > 0);
+  assert.ok(Math.hypot(next.asteroids[0].x - next.goblin.x, next.asteroids[0].y - next.goblin.y) < 60);
+});
+
+test('goblin mode wins after fifty hits and caps active launched asteroids', () => {
+  let game = goblin();
+  game.goblin = { id: 100, x: 200, y: 200, vx: 0, vy: 0, angle: 0, spin: 0, hp: 50 };
+  game.ship.invulnerable = 100;
+  for (let hit = 0; hit < 50; hit++) {
+    game.bullets = [bullet(101 + hit, 200, 200)];
+    game = stepGame(game, {}, 0.01);
+  }
+  const won = game;
+  assert.equal(won.status, 'won');
+  assert.equal(won.goblin.hp, 0);
+
+  const crowded = goblin();
+  crowded.asteroids = Array.from({ length: crowded.settings.asteroidCount }, (_, i) => rock(100 + i, 100 + i, 100));
+  crowded.spawnCountdown = 0.001;
+  assert.equal(stepGame(crowded, {}, 0.01).asteroids.length, crowded.settings.asteroidCount);
+});
+
+test('goblin mode does not end by timer alone', () => {
+  const game = goblin();
+  game.elapsed = game.settings.durationSeconds + 10;
+  game.ship.invulnerable = 100;
+  const next = stepGame(game, {}, 0.05);
+  assert.equal(next.status, 'playing');
+  assert.ok(next.elapsed > game.elapsed);
+});
+
+test('touching the goblin costs a life and final contact beats killing it', () => {
+  const game = goblin();
+  game.goblin.x = game.ship.x;
+  game.goblin.y = game.ship.y;
+  const hit = stepGame(game, {}, 0.01);
+  assert.equal(hit.lives, 2);
+  assert.ok(hit.ship.invulnerable > 0);
+
+  const final = goblin();
+  final.lives = 1;
+  final.goblin = { id: 100, x: final.ship.x, y: final.ship.y, vx: 0, vy: 0, angle: 0, spin: 0, hp: 1 };
+  final.bullets = [bullet(101, final.ship.x, final.ship.y)];
+  assert.equal(stepGame(final, {}, 0.05).status, 'gameover');
 });
 
 test('survival starts a directed flow and introduces new rocks on a timer', () => {

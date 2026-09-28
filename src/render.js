@@ -1,4 +1,4 @@
-import { WORLD, RADII } from './game/core.js';
+import { GOBLIN_MAX_HP, GOBLIN_RADIUS, WORLD, RADII } from './game/core.js';
 
 export function createRenderer(canvas) {
   const ctx = canvas.getContext('2d');
@@ -50,6 +50,66 @@ export function createRenderer(canvas) {
         }
         ctx.closePath(); ctx.fill(); ctx.stroke();
       }, state.settings.mode !== 'survival');
+    }
+    if (state.goblin) {
+      wrapped(state.goblin, () => {
+        ctx.lineWidth = 2;
+        ctx.fillStyle = '#234832';
+        ctx.strokeStyle = '#8bf2c0';
+        ctx.beginPath();
+        ctx.ellipse(0, 3, GOBLIN_RADIUS * 0.82, GOBLIN_RADIUS, 0, 0, Math.PI * 2);
+        ctx.fill(); ctx.stroke();
+        ctx.fillStyle = '#1d3a2b';
+        ctx.strokeStyle = '#6ac690';
+        for (const side of [-1, 1]) {
+          ctx.beginPath();
+          ctx.moveTo(side * 18, -9);
+          ctx.lineTo(side * 39, -23);
+          ctx.lineTo(side * 27, 5);
+          ctx.closePath();
+          ctx.fill(); ctx.stroke();
+        }
+        ctx.fillStyle = '#d6ff9a';
+        for (const side of [-1, 1]) {
+          ctx.beginPath();
+          ctx.arc(side * 9, -6, 4.2, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#07130c';
+          ctx.beginPath();
+          ctx.arc(side * 10, -5, 1.8, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#d6ff9a';
+        }
+        ctx.strokeStyle = '#b6ffdb';
+        ctx.beginPath();
+        ctx.moveTo(-13, -15); ctx.lineTo(-4, -12);
+        ctx.moveTo(4, -12); ctx.lineTo(13, -15);
+        ctx.stroke();
+        ctx.fillStyle = '#ffd29a';
+        ctx.beginPath();
+        ctx.moveTo(0, -1); ctx.lineTo(-4, 7); ctx.lineTo(4, 7);
+        ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = '#d6ff9a';
+        ctx.beginPath();
+        ctx.arc(0, 10, 11, 0.15 * Math.PI, 0.85 * Math.PI);
+        ctx.stroke();
+      });
+      const hp = Math.max(0, Math.min(GOBLIN_MAX_HP, state.goblin.hp ?? GOBLIN_MAX_HP));
+      const width = 58;
+      const height = 5;
+      for (const dx of [-WORLD.width, 0, WORLD.width]) {
+        for (const dy of [-WORLD.height, 0, WORLD.height]) {
+          const x = state.goblin.x + dx - width / 2;
+          const y = state.goblin.y + dy - GOBLIN_RADIUS - 15;
+          ctx.fillStyle = '#172538';
+          ctx.fillRect(x, y, width, height);
+          ctx.fillStyle = '#8bf2c0';
+          ctx.fillRect(x, y, width * hp / GOBLIN_MAX_HP, height);
+          ctx.strokeStyle = '#d6ff9a';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(x - 0.5, y - 0.5, width + 1, height + 1);
+        }
+      }
     }
     ctx.fillStyle = '#ffd29a';
     for (const shot of state.bullets) {
