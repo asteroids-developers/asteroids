@@ -1,0 +1,11 @@
+{
+  "id": "last-stand",
+  "title": "Последний рубеж",
+  "description": "Продержитесь 75 секунд в опасном секторе с непрерывным потоком быстрых астероидов.",
+  "seed": 2026,
+  "asteroidCount": 18,
+  "asteroidSpeed": 2.4,
+  "mode": "survival",
+  "durationSeconds": 75,
+  "spawnIntervalSeconds": 0.9
+}
