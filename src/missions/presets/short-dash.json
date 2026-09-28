@@ -1,0 +1,11 @@
+{
+  "id": "short-dash",
+  "title": "Короткий рывок",
+  "description": "Продержитесь 30 секунд в быстром потоке справа налево. Шесть астероидов на старте, новые — каждую секунду: маневрируйте и расчищайте путь огнём.",
+  "seed": 73,
+  "asteroidCount": 6,
+  "asteroidSpeed": 2,
+  "mode": "survival",
+  "durationSeconds": 30,
+  "spawnIntervalSeconds": 1
+}
