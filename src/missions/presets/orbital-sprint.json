@@ -1,0 +1,10 @@
+{
+  "id": "orbital-sprint",
+  "title": "Орбитальный спринт",
+  "description": "Очистите сектор за 45 секунд: уничтожьте три астероида и все их осколки. Если время закончится раньше — миссия провалена.",
+  "seed": 314,
+  "asteroidCount": 3,
+  "asteroidSpeed": 0.9,
+  "mode": "time-attack",
+  "durationSeconds": 45
+}

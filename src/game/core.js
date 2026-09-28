@@ -9,7 +9,7 @@ export function validateSettings({
   seed, asteroidCount, asteroidSpeed, mode = 'waves',
   durationSeconds = 60, spawnIntervalSeconds = 1.25,
 }) {
-  if (!['waves', 'clear', 'survival'].includes(mode)) throw new TypeError('unknown mission mode');
+  if (!['waves', 'clear', 'survival', 'time-attack'].includes(mode)) throw new TypeError('unknown mission mode');
   if (!Number.isFinite(durationSeconds) || durationSeconds < 1 || durationSeconds > 600) {
     throw new RangeError('durationSeconds must be between 1 and 600');
   }
@@ -126,8 +126,10 @@ export function stepGame(previous, input = {}, dt = 1 / 60) {
   const state = structuredClone(previous);
   dt = Math.min(dt, 0.05);
   const survival = state.settings.mode === 'survival';
-  if (survival) dt = Math.min(dt, Math.max(0, state.settings.durationSeconds - state.elapsed));
-  state.elapsed = survival ? Math.min(state.settings.durationSeconds, state.elapsed + dt) : state.elapsed + dt;
+  const timeAttack = state.settings.mode === 'time-attack';
+  const timed = survival || timeAttack;
+  if (timed) dt = Math.min(dt, Math.max(0, state.settings.durationSeconds - state.elapsed));
+  state.elapsed = timed ? Math.min(state.settings.durationSeconds, state.elapsed + dt) : state.elapsed + dt;
   steer(state, input, dt);
   for (const rock of state.asteroids) {
     if (survival) {
@@ -152,7 +154,11 @@ export function stepGame(previous, input = {}, dt = 1 / 60) {
   resolveHits(state);
   // Collision loss takes precedence over completing an objective in the same step.
   if (state.status !== 'playing') return state;
-  if (survival) {
+  if (timeAttack) {
+    // The final hit at the deadline still counts, provided the ship survived.
+    if (state.asteroids.length === 0) state.status = 'won';
+    else if (state.elapsed >= state.settings.durationSeconds) state.status = 'gameover';
+  } else if (survival) {
     if (state.elapsed >= state.settings.durationSeconds) {
       state.status = 'won';
     } else {

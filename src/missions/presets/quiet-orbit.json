@@ -1,0 +1,9 @@
+{
+  "id": "quiet-orbit",
+  "title": "Тихая орбита",
+  "description": "Очистите одну волну из трёх медленных астероидов вместе с их осколками.",
+  "seed": 73,
+  "asteroidCount": 3,
+  "asteroidSpeed": 0.6,
+  "mode": "clear"
+}
