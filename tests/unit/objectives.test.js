@@ -6,6 +6,7 @@ const rock = (id, x, y, size = 1, vx = 0) => ({ id, x, y, vx, vy: 0, size, angle
 const bullet = (id, x, y) => ({ id, x, y, vx: 0, vy: 0, ttl: 1 });
 const clear = () => createGame({ seed: 42, mode: 'clear', asteroidCount: 3, asteroidSpeed: 0.6 });
 const survival = () => createGame({ seed: 2026, mode: 'survival', durationSeconds: 60, spawnIntervalSeconds: 1.25 });
+const droneEscape = () => createGame({ seed: 314159, mode: 'drone-escape', levelDurationSeconds: 20 });
 
 test('legacy options retain endless waves', () => {
   const game = createGame();
@@ -151,6 +152,60 @@ test('survival spawning remains deterministic across frames', () => {
   assert.deepEqual(a, b);
 });
 
+test('drone escape starts with an unarmed asteroid facing one drone', () => {
+  const game = droneEscape();
+  assert.equal(game.level, 1);
+  assert.equal(game.levelElapsed, 0);
+  assert.equal(game.drones.length, 1);
+  assert.equal(game.asteroids.length, 0);
+  assert.equal(stepGame(game, { fire: true }, 0.01).bullets.length, 0);
+});
+
+test('drone escape adds one attacker after every 20-second level', () => {
+  let game = droneEscape();
+  game.ship.invulnerable = 100;
+  game.drones[0].cooldown = 100;
+  game.levelElapsed = 19.98;
+  game = stepGame(game, {}, 0.05);
+  assert.equal(game.level, 2);
+  assert.equal(game.drones.length, 2);
+  assert.ok(game.levelElapsed > 0 && game.levelElapsed < 0.05);
+  assert.equal(game.score, 100);
+  game.levelElapsed = 19.99;
+  game = stepGame(game, {}, 0.02);
+  assert.equal(game.level, 3);
+  assert.equal(game.drones.length, 3);
+  assert.equal(game.score, 200);
+});
+
+test('drone fire removes one layer of asteroid mass and respects invulnerability', () => {
+  let game = droneEscape();
+  game.drones[0].cooldown = 100;
+  game.enemyBullets = [{ id: 100, x: game.ship.x, y: game.ship.y, vx: 0, vy: 0, ttl: 1 }];
+  game = stepGame(game, {}, 0.01);
+  assert.equal(game.lives, 2);
+  assert.ok(game.ship.invulnerable > 0);
+  game.enemyBullets = [{ id: 101, x: game.ship.x, y: game.ship.y, vx: 0, vy: 0, ttl: 1 }];
+  assert.equal(stepGame(game, {}, 0.01).lives, 2);
+  game.ship.invulnerable = 0;
+  game.lives = 1;
+  game.enemyBullets = [{ id: 102, x: game.ship.x, y: game.ship.y, vx: 0, vy: 0, ttl: 1 }];
+  const ended = stepGame(game, {}, 0.01);
+  assert.equal(ended.status, 'gameover');
+  assert.equal(ended.lives, 0);
+});
+
+test('drone movement and fire stay deterministic', () => {
+  let a = droneEscape(), b = droneEscape();
+  a.ship.invulnerable = b.ship.invulnerable = 100;
+  for (let i = 0; i < 200; i++) {
+    a = stepGame(a, { thrust: i % 3 === 0, right: i % 5 === 0 }, 0.05);
+    b = stepGame(b, { thrust: i % 3 === 0, right: i % 5 === 0 }, 0.05);
+  }
+  assert.deepEqual(a, b);
+  assert.ok(a.enemyBullets.length > 0);
+});
+
 test('restart clears objective counters and uses the same initial seed', () => {
   const initial = clear();
   const restarted = createGame(initial.settings);
@@ -160,12 +215,13 @@ test('restart clears objective counters and uses the same initial seed', () => {
   assert.deepEqual(restarted, initial);
 });
 
-test('invalid modes and survival timing are rejected', () => {
+test('invalid modes and mission timing are rejected', () => {
   for (const settings of [
     { mode: 'unknown' }, { mode: null }, { durationSeconds: 0 },
     { durationSeconds: Infinity }, { durationSeconds: 601 },
     { spawnIntervalSeconds: 0 }, { spawnIntervalSeconds: NaN },
     { spawnIntervalSeconds: 0.1 }, { spawnIntervalSeconds: 11 },
+    { levelDurationSeconds: 0 }, { levelDurationSeconds: Infinity }, { levelDurationSeconds: 601 },
   ]) assert.throws(() => createGame(settings));
 });
 

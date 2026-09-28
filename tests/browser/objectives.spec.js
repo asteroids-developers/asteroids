@@ -77,3 +77,25 @@ test('last-life collision at the deadline displays defeat rather than victory', 
   await expect(page.getByRole('heading', { name: 'Полёт завершён' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Миссия выполнена' })).toBeHidden();
 });
+
+test('drone escape resets its 20-second timer and adds one drone per level', async ({ page }) => {
+  await page.goto('/');
+  await page.getByLabel('Миссия', { exact: true }).selectOption('false-target');
+  await expect(page.getByTestId('objective')).toHaveText('Уровень 1: продержитесь 20 секунд');
+  await expect(page.getByTestId('objective-progress')).toHaveText('Осталось 20 с');
+  await expect(page.getByText('Вы управляете астероидом и можете только уклоняться.')).toBeVisible();
+  await page.getByRole('button', { name: 'Начать полёт', exact: true }).click();
+  await page.evaluate(() => {
+    const api = window.__ASTEROIDS_TEST__;
+    const state = api.getState();
+    state.levelElapsed = 19.99;
+    state.ship.invulnerable = 100;
+    state.drones[0].cooldown = 100;
+    api.setState(state);
+    api.advance();
+  });
+  await expect(page.getByTestId('objective')).toHaveText('Уровень 2: продержитесь 20 секунд');
+  await expect(page.getByTestId('objective-progress')).toHaveText('Осталось 20 с');
+  await expect(page.getByTestId('field-value')).toHaveText('2');
+  expect(await page.evaluate(() => window.__ASTEROIDS_TEST__.getState().drones.length)).toBe(2);
+});

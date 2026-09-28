@@ -19,6 +19,7 @@ export function validateMission(value) {
     mode: value.mode ?? 'waves',
     durationSeconds: value.durationSeconds ?? 60,
     spawnIntervalSeconds: value.spawnIntervalSeconds ?? 1.25,
+    levelDurationSeconds: value.levelDurationSeconds ?? 20,
   });
 }
 
