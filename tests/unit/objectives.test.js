@@ -40,7 +40,7 @@ test('clear objective waits until all fragments are destroyed', () => {
 
 test('initial placement stays separated and safe across mission modes and seeds', () => {
   for (let seed = 0; seed < 30; seed++) {
-    for (const mode of ['waves', 'clear', 'survival']) {
+    for (const mode of ['waves', 'clear', 'survival', 'time-attack']) {
       const game = createGame({ seed, mode, asteroidCount: 30 });
       assert.equal(game.asteroids.length, 30);
       if (mode === 'survival') {
