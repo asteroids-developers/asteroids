@@ -32,6 +32,31 @@ test('empty catalogs and duplicate identifiers are rejected', () => {
   assert.throws(() => loadMissions([fixture, { ...fixture, title: 'Другое имя' }]), /duplicate/i);
 });
 
+test('mission themes are validated and do not change the simulation', () => {
+  const classic = validateMission(fixture);
+  const pink = validateMission({ ...fixture, theme: 'pink' });
+  assert.equal(classic.theme, 'classic');
+  assert.equal(pink.theme, 'pink');
+  assert.deepEqual(createGame(pink), createGame(classic));
+  for (const theme of ['unknown', null, '', 42, {}]) {
+    assert.throws(() => validateMission({ ...fixture, theme }), /theme/);
+  }
+});
+
+test('Barbie mission is winnable with normal controls and can be restarted deterministically', () => {
+  const mission = validateMission(presets().find(mission => mission.id === 'barbie-dream-orbit'));
+  const initial = createGame(mission);
+  let state = initial;
+  // Repeat a one-second manoeuvre: turn for 1/3 s, thrust for 1/2 s, keep firing.
+  for (let frame = 0; frame < 3000 && state.status === 'playing'; frame++) {
+    state = stepGame(state, { fire: true, right: frame % 60 < 20, thrust: frame % 60 < 30 }, 1 / 60);
+  }
+  assert.equal(state.status, 'won');
+  assert.equal(state.elapsed, mission.durationSeconds);
+  assert.ok(state.lives > 0);
+  assert.deepEqual(createGame(mission), initial);
+});
+
 test('invalid mission metadata and numeric settings are rejected', () => {
   for (const changed of [
     { id: '' }, { id: '../bad' }, { title: ' ' }, { description: '' },

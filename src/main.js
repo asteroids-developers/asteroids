@@ -28,7 +28,9 @@ for (const mission of missions) {
   missionPicker.append(option);
 }
 document.querySelector('#mission-picker').append(missionPicker);
-let settings = missions.find(mission => mission.id === 'first-flight') || missions[0];
+const requestedMission = new URLSearchParams(window.location.search).get('mission');
+let settings = missions.find(mission => mission.id === requestedMission)
+  || missions.find(mission => mission.id === 'first-flight') || missions[0];
 missionPicker.value = settings.id;
 let state = createGame(settings);
 let mode = 'ready';
@@ -116,6 +118,7 @@ function togglePause() {
 }
 
 function updateMissionBriefing() {
+  document.documentElement.dataset.theme = settings.theme;
   document.querySelector('#mission-title').textContent = settings.title;
   document.querySelector('#mission-description').textContent = settings.description;
   document.querySelector('#mission-difficulty').textContent = settings.mode === 'clear' ? 'Одна волна' : settings.mode === 'survival' ? 'Поток · ' + settings.durationSeconds + ' с' : 'Бесконечные волны';
@@ -166,7 +169,7 @@ function frame(timestamp) {
       accumulator -= 1 / 60;
     }
   }
-  render(state, mode === 'playing' && input().thrust);
+  render(state, mode === 'playing' && input().thrust, settings.theme);
   requestAnimationFrame(frame);
 }
 updateMissionBriefing();

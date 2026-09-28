@@ -13,12 +13,15 @@ export function validateMission(value) {
     }
   }
   validateSettings(value);
+  const theme = value.theme === undefined ? 'classic' : value.theme;
+  if (!['classic', 'pink'].includes(theme)) throw new TypeError('unknown mission theme');
   return Object.freeze({
     id: value.id, title: value.title.trim(), description: value.description.trim(),
     seed: value.seed, asteroidCount: value.asteroidCount, asteroidSpeed: value.asteroidSpeed,
     mode: value.mode ?? 'waves',
     durationSeconds: value.durationSeconds ?? 60,
     spawnIntervalSeconds: value.spawnIntervalSeconds ?? 1.25,
+    theme,
   });
 }
 

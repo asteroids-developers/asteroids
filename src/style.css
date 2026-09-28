@@ -89,3 +89,23 @@ progress::-webkit-progress-bar { background: #25364a; }
 progress::-webkit-progress-value { background: var(--mint); }
 progress::-moz-progress-bar { background: var(--mint); }
 @media (max-width: 560px) { .objective-strip { padding: 12px; } .objective-summary strong { font-size: 12px; } }
+
+/* Mission themes affect presentation only; the simulation keeps its own settings. */
+:root[data-theme="pink"] { color: #fff0fa; background: #1c0c23; --muted: #d8a9c9; --line: #693656; --mint: #ff9fd7; }
+[data-theme="pink"] body { background: radial-gradient(ellipse at 80% 0%, #6b1d56 0%, transparent 60%), #1c0c23; }
+[data-theme="pink"] .flight-panel { background: #2d132e; }
+[data-theme="pink"] .objective-strip { background: #421635; }
+[data-theme="pink"] .arena { background: #200d29; }
+[data-theme="pink"] .overlay { background: #260c2699; }
+[data-theme="pink"] .overlay p { color: #f1c7e1; }
+[data-theme="pink"] .primary { color: #3c0c2a; }
+[data-theme="pink"] .primary:hover { background: #ffc5e9; }
+[data-theme="pink"] .quiet { color: #ffe1f3; background: #592343; }
+[data-theme="pink"] .quiet:hover:not(:disabled) { background: #76365b; }
+[data-theme="pink"] select { color: #ffe1f3; background: #401630; border-color: #98577e; }
+[data-theme="pink"] kbd { color: #ffe1f3; background: #401630; border-color: #98577e; }
+[data-theme="pink"] .control-row { color: #f1c7e1; }
+[data-theme="pink"] .score-guide { background: #50183955; }
+[data-theme="pink"] .page-footer, [data-theme="pink"] .page-footer a { color: #d8a9c9; }
+[data-theme="pink"] .beacon, [data-theme="pink"] .status-dot { box-shadow: 0 0 12px #ff9fd750; }
+[data-theme="pink"] progress, [data-theme="pink"] progress::-webkit-progress-bar { background: #693656; }

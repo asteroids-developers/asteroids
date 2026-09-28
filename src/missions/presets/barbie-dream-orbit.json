@@ -1,0 +1,12 @@
+{
+  "id": "barbie-dream-orbit",
+  "title": "Барби: курс на Дримхаус",
+  "description": "Вечеринка в Дримхаусе через 45 секунд! Проведите розовый корабль сквозь астероидный поток: уклоняйтесь, стреляйте и сохраните хотя бы одну жизнь до конца таймера. Кен уже занял парковку.",
+  "seed": 1959,
+  "asteroidCount": 6,
+  "asteroidSpeed": 1.1,
+  "mode": "survival",
+  "durationSeconds": 45,
+  "spawnIntervalSeconds": 1.5,
+  "theme": "pink"
+}
