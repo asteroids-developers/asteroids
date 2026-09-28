@@ -1,0 +1,12 @@
+{
+  "id": "uninvited-guest",
+  "title": "Незваный гость",
+  "description": "Выживите 60 секунд под атакой НЛО. Розовая тарелка целится в ваш корабль — меняйте курс! Сбейте её за 200 очков и получите 5 секунд перед следующим гостем. Астероиды тоже опасны.",
+  "seed": 928,
+  "asteroidCount": 3,
+  "asteroidSpeed": 0.7,
+  "mode": "survival",
+  "durationSeconds": 60,
+  "spawnIntervalSeconds": 4,
+  "ufoEnabled": true
+}

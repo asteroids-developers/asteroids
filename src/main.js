@@ -2,6 +2,7 @@ import './style.css';
 import { createGame, stepGame, WORLD, RADII } from './game/core.js';
 import { createRenderer } from './render.js';
 import { missions } from './missions/catalog.js';
+import { RALLY } from './game/rally.js';
 
 const canvas = document.querySelector('#game');
 const render = createRenderer(canvas);
@@ -16,6 +17,8 @@ const fieldLabel = document.querySelector('#field-label');
 const objective = document.querySelector('[data-testid="objective"]');
 const objectiveProgress = document.querySelector('[data-testid="objective-progress"]');
 const missionProgress = document.querySelector('#mission-progress');
+const rallyHud = document.querySelector('#rally-hud');
+const rallyStage = document.querySelector('#rally-stage');
 const overlayTitle = document.querySelector('#overlay-title');
 const overlayCopy = document.querySelector('#overlay-copy');
 const overlayTag = document.querySelector('#overlay-tag');
@@ -28,7 +31,9 @@ for (const mission of missions) {
   missionPicker.append(option);
 }
 document.querySelector('#mission-picker').append(missionPicker);
-let settings = missions.find(mission => mission.id === 'first-flight') || missions[0];
+const requestedMission = new URLSearchParams(window.location.search).get('mission');
+let settings = missions.find(mission => mission.id === requestedMission)
+  || missions.find(mission => mission.id === 'first-flight') || missions[0];
 missionPicker.value = settings.id;
 let state = createGame(settings);
 let mode = 'ready';
@@ -42,6 +47,7 @@ function input() {
     right: held.has('ArrowRight') || held.has('KeyD'),
     thrust: held.has('ArrowUp') || held.has('KeyW'),
     fire: held.has('Space'),
+    dash: held.has('ShiftLeft') || held.has('ShiftRight'),
   };
 }
 
@@ -52,7 +58,22 @@ function updateHud() {
   fieldLabel.textContent = legacy ? 'ВОЛНА' : 'АСТЕРОИДЫ';
   fieldValue.textContent = legacy ? state.wave : state.asteroids.filter(rock => rock.x + RADII[rock.size] >= 0 && rock.x - RADII[rock.size] <= WORLD.width).length;
   missionProgress.hidden = legacy;
-  if (state.settings.mode === 'clear') {
+  rallyHud.hidden = !state.rally;
+  if (state.rally) {
+    const rally = state.rally;
+    const stages = { collect: '01 / ПРИГЛАШЕНИЯ', storm: '02 / ДИСКО-ШТОРМ', escape: '03 / ДРИМХАУС' };
+    rallyStage.textContent = stages[rally.phase];
+    document.querySelector('#rally-hearts').textContent = Math.min(rally.hearts, RALLY.heartsRequired) + ' / ' + RALLY.heartsRequired;
+    document.querySelector('#rally-shield').textContent = '♥'.repeat(rally.shields) || 'нет';
+    document.querySelector('#rally-dash').textContent = rally.dashCooldown > 0 ? rally.dashCooldown.toFixed(1) + ' с' : 'SHIFT · ГОТОВ';
+    document.querySelector('#rally-power').textContent = rally.powerRemaining > 0 ? 'ТРОЙНОЙ · ' + Math.ceil(rally.powerRemaining) + ' с' : 'обычный';
+    objective.textContent = rally.phase === 'collect' ? 'Соберите 3 сердца-приглашения'
+      : rally.phase === 'storm' ? 'Переживите диско-шторм · ' + Math.ceil(Math.max(0, RALLY.stormSeconds - rally.phaseElapsed)) + ' с'
+      : 'Портал открыт! Летите к Дримхаусу →';
+    objectiveProgress.textContent = 'До закрытия: ' + Math.ceil(Math.max(0, state.settings.durationSeconds - state.elapsed)) + ' с';
+    missionProgress.max = state.settings.durationSeconds;
+    missionProgress.value = state.settings.durationSeconds - state.elapsed;
+  } else if (state.settings.mode === 'clear') {
     const total = state.settings.asteroidCount * 7;
     objective.textContent = 'Очистите одну волну';
     objectiveProgress.textContent = 'Попадания: ' + state.destroyed + ' / ' + total;
@@ -60,10 +81,12 @@ function updateHud() {
     missionProgress.value = state.destroyed;
   } else if (state.settings.mode === 'survival') {
     const requiredHits = state.settings.requiredHits ?? 0;
-    objective.textContent = 'Продержитесь ' + state.settings.durationSeconds + ' секунд'
+    objective.textContent = (state.settings.ufoEnabled ? 'Переживите атаку НЛО · ' : 'Продержитесь ')
+      + state.settings.durationSeconds + ' секунд'
       + (requiredHits === 1 ? ' и попадите по астероиду'
         : requiredHits > 1 ? ' и сделайте не меньше ' + requiredHits + ' попаданий' : '');
     objectiveProgress.textContent = 'Осталось ' + Math.ceil(Math.max(0, state.settings.durationSeconds - state.elapsed)) + ' с'
+      + (state.settings.ufoEnabled ? ' · НЛО сбито: ' + state.ufosDestroyed : '')
       + (requiredHits ? ' · Попадания: ' + Math.min(state.destroyed, requiredHits) + ' / ' + requiredHits : '');
     missionProgress.max = state.settings.durationSeconds;
     missionProgress.value = state.elapsed;
@@ -79,10 +102,14 @@ function finish() {
   held.clear();
   const won = state.status === 'won';
   status.textContent = won ? 'Миссия выполнена' : 'Полёт завершён';
-  overlayTitle.textContent = status.textContent;
+  overlayTitle.textContent = state.rally ? (won ? 'Hi, Barbie! Ты дома.' : 'Вечеринка подождёт') : status.textContent;
   overlayTag.textContent = won ? 'ЦЕЛЬ ДОСТИГНУТА' : 'РАЗБОР ВЫЛЕТА';
-  const result = state.settings.mode === 'survival' ? 'Вы выдержали весь поток.' : 'Сектор очищен.';
-  overlayCopy.textContent = (won ? result + ' ' : '') + 'Ваш результат: ' + state.score + ' очков.';
+  const result = state.settings.mode === 'survival' ? (state.settings.ufoEnabled ? 'Вы пережили атаку НЛО.' : 'Вы выдержали весь поток.') : 'Сектор очищен.';
+  overlayCopy.textContent = state.rally
+    ? (won ? 'Приглашения собраны, шторм пройден, Дримхаус спасён от скуки. '
+      : state.rally.reason === 'timeout' ? 'Время вышло: портал закрылся. Собирайте сердца — они дают щит и перезаряжают рывок. '
+      : 'Щит закончился. Подбирайте сердца и используйте Shift, чтобы проскочить опасный участок. ') + 'Ваш результат: ' + state.score + ' очков.'
+    : (won ? result + ' ' : '') + 'Ваш результат: ' + state.score + ' очков.';
   startButton.textContent = won ? 'Повторить миссию' : 'Начать заново';
   pauseButton.disabled = true;
   overlay.hidden = false;
@@ -120,9 +147,11 @@ function togglePause() {
 }
 
 function updateMissionBriefing() {
+  document.documentElement.dataset.theme = settings.theme;
   document.querySelector('#mission-title').textContent = settings.title;
   document.querySelector('#mission-description').textContent = settings.description;
-  document.querySelector('#mission-difficulty').textContent = settings.mode === 'clear' ? 'Одна волна' : settings.mode === 'survival' ? 'Поток · ' + settings.durationSeconds + ' с' : 'Бесконечные волны';
+  document.querySelector('#mission-difficulty').textContent = settings.mode === 'dream-rally' ? '3 этапа · ' + settings.durationSeconds + ' с' : settings.mode === 'clear' ? 'Одна волна' : settings.mode === 'survival' ? 'Поток · ' + settings.durationSeconds + ' с' : 'Бесконечные волны';
+  document.querySelector('#dash-control').hidden = settings.mode !== 'dream-rally';
   overlayCopy.textContent = settings.description;
   document.querySelector('#flight-label').textContent = 'МИССИЯ / ' + settings.title.toUpperCase();
 }
@@ -145,7 +174,7 @@ missionPicker.addEventListener('change', () => {
 });
 startButton.addEventListener('click', start);
 pauseButton.addEventListener('click', togglePause);
-const gameKeys = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'KeyA', 'KeyD', 'KeyW', 'Space']);
+const gameKeys = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'KeyA', 'KeyD', 'KeyW', 'Space', 'ShiftLeft', 'ShiftRight']);
 window.addEventListener('keydown', event => {
   if (event.target.closest?.('button, select, input, textarea, a')) return;
   if (event.code === 'KeyP' && !event.repeat) {
@@ -170,7 +199,7 @@ function frame(timestamp) {
       accumulator -= 1 / 60;
     }
   }
-  render(state, mode === 'playing' && input().thrust);
+  render(state, mode === 'playing' && input().thrust, settings.theme);
   requestAnimationFrame(frame);
 }
 updateMissionBriefing();

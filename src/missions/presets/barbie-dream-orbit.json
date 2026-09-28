@@ -1,0 +1,12 @@
+{
+  "id": "barbie-dream-orbit",
+  "title": "Барби: курс на Дримхаус",
+  "description": "Кен включил охрану Дримхауса и потерял пульт. Соберите 3 сердца-приглашения, переживите 20 секунд астероидного шторма и влетите в открывшийся портал. Сердца дают щит и тройной залп, Shift — защитный рывок. На всё 90 секунд!",
+  "seed": 1959,
+  "asteroidCount": 4,
+  "asteroidSpeed": 0.9,
+  "mode": "dream-rally",
+  "durationSeconds": 90,
+  "spawnIntervalSeconds": 2,
+  "theme": "pink"
+}
